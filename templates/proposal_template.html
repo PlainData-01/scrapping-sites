@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Proposta — {{ business_name }}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 2cm;
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            color: #1a1a2e;
+            line-height: 1.6;
+        }
+        .page {
+            page-break-after: always;
+            min-height: 90vh;
+            padding: 20px 0;
+        }
+        .page:last-child {
+            page-break-after: avoid;
+        }
+        .cover {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            min-height: 85vh;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            color: white;
+            padding: 60px 40px;
+            border-radius: 8px;
+        }
+        .cover h1 {
+            font-size: 36px;
+            margin-bottom: 20px;
+            font-weight: 700;
+        }
+        .cover h2 {
+            font-size: 22px;
+            font-weight: 300;
+            margin-bottom: 40px;
+            opacity: 0.9;
+        }
+        .cover .date {
+            font-size: 14px;
+            opacity: 0.7;
+            margin-top: 60px;
+        }
+        .cover .domain {
+            font-size: 16px;
+            opacity: 0.8;
+            margin-top: 10px;
+        }
+        h2.section-title {
+            font-size: 24px;
+            color: #0f3460;
+            border-bottom: 3px solid #e94560;
+            padding-bottom: 10px;
+            margin-bottom: 25px;
+        }
+        h3 {
+            font-size: 18px;
+            color: #16213e;
+            margin: 20px 0 10px;
+        }
+        p {
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+        ul {
+            margin: 10px 0 20px 20px;
+        }
+        li {
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        .problem {
+            color: #e94560;
+        }
+        .improvement {
+            color: #0f3460;
+        }
+        .screenshot {
+            max-width: 100%;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin: 15px 0;
+        }
+        .highlight-box {
+            background: #f0f4f8;
+            border-left: 4px solid #0f3460;
+            padding: 15px 20px;
+            margin: 15px 0;
+            border-radius: 0 4px 4px 0;
+        }
+        .cta-box {
+            background: #0f3460;
+            color: white;
+            padding: 30px;
+            border-radius: 8px;
+            text-align: center;
+            margin-top: 30px;
+        }
+        .cta-box h3 {
+            color: white;
+            font-size: 20px;
+        }
+        .cta-box p {
+            opacity: 0.9;
+        }
+        .tech-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .tech-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+            font-size: 13px;
+        }
+        .footer-note {
+            font-size: 11px;
+            color: #888;
+            margin-top: 40px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Página 1: Capa -->
+    <div class="page">
+        <div class="cover">
+            <h1>{{ business_name }}</h1>
+            <h2>Proposta de Redesign do Site</h2>
+            <p class="domain">{{ domain }}</p>
+            <p class="date">{{ date }}</p>
+        </div>
+    </div>
+
+    <!-- Página 2: Diagnóstico -->
+    <div class="page">
+        <h2 class="section-title">Diagnóstico do Site Atual</h2>
+
+        <p>{{ business_description }}</p>
+
+        {% if screenshot_path %}
+        <img class="screenshot" src="file:///{{ screenshot_path }}" alt="Screenshot do site atual">
+        {% endif %}
+
+        <h3>Problemas Identificados</h3>
+        <ul>
+            {% for problem in current_site_problems %}
+            <li class="problem">{{ problem }}</li>
+            {% endfor %}
+        </ul>
+
+        {% if urgency_points %}
+        <div class="highlight-box">
+            <h3>Por que agir agora?</h3>
+            <ul>
+                {% for point in urgency_points %}
+                <li>{{ point }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Página 3: Entregas -->
+    <div class="page">
+        <h2 class="section-title">O Que Vamos Entregar</h2>
+
+        <h3>Melhorias Propostas</h3>
+        <ul>
+            {% for improvement in suggested_improvements %}
+            <li class="improvement">{{ improvement }}</li>
+            {% endfor %}
+        </ul>
+
+        <h3>Diferenciais</h3>
+        <ul>
+            {% for highlight in proposal_highlights %}
+            <li>{{ highlight }}</li>
+            {% endfor %}
+        </ul>
+
+        <h3>Tecnologias</h3>
+        <div class="tech-grid">
+            <div class="tech-item">Design Responsivo</div>
+            <div class="tech-item">SEO Otimizado</div>
+            <div class="tech-item">Performance Web</div>
+            <div class="tech-item">SSL / HTTPS</div>
+        </div>
+
+        <div class="highlight-box">
+            <p><strong>Escopo:</strong> {{ estimated_page_count }} páginas otimizadas</p>
+            <p><strong>Prazo estimado:</strong> 30 a 40 dias úteis</p>
+        </div>
+    </div>
+
+    <!-- Página 4: Sobre nós -->
+    <div class="page">
+        <h2 class="section-title">Sobre Nós</h2>
+
+        <p>Somos uma equipe especializada em desenvolvimento web e marketing digital, com foco em criar experiências digitais que convertem visitantes em clientes.</p>
+
+        <h3>Nossa Experiência</h3>
+        <ul>
+            <li>Mais de 50 projetos de redesign entregues</li>
+            <li>Especialização em negócios locais e regionais</li>
+            <li>Metodologia ágil com entregas incrementais</li>
+            <li>Suporte pós-lançamento incluso</li>
+        </ul>
+
+        <h3>O Que Nossos Clientes Dizem</h3>
+        <div class="highlight-box">
+            <p><em>"O novo site triplicou nossos contatos em 2 meses. Investimento que se pagou rapidamente."</em></p>
+            <p>— Cliente do setor de serviços</p>
+        </div>
+
+        <p class="footer-note">[Edite esta seção com informações reais da sua empresa]</p>
+    </div>
+
+    <!-- Página 5: Próximos Passos -->
+    <div class="page">
+        <h2 class="section-title">Próximos Passos</h2>
+
+        <ol>
+            <li><strong>Reunião de briefing</strong> — 30 minutos para alinhar expectativas</li>
+            <li><strong>Aprovação da proposta</strong> — Formalização do contrato</li>
+            <li><strong>Início do projeto</strong> — Cronograma detalhado com marcos</li>
+            <li><strong>Entrega e lançamento</strong> — Site no ar com treinamento</li>
+        </ol>
+
+        <div class="cta-box">
+            <h3>Vamos conversar?</h3>
+            <p>Entre em contato para agendar uma apresentação desta proposta.</p>
+            <p style="margin-top: 15px;">
+                <strong>Email:</strong> contato@suaempresa.com.br<br>
+                <strong>WhatsApp:</strong> (11) 99999-9999
+            </p>
+        </div>
+
+        <p class="footer-note">Proposta válida por 30 dias — {{ date }}</p>
+    </div>
+
+</body>
+</html>

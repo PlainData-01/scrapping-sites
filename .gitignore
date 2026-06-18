@@ -1,0 +1,32 @@
+# Ambiente
+.env
+.venv/
+venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Saídas geradas pelo agente (manter módulos Python em output/)
+output/briefings/
+output/sites/
+output/assets/
+output/screenshots/
+output/*.html
+output/*.pdf
+output/proposta-*
+storage/*.db
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Node (projetos Next.js gerados localmente)
+node_modules/
