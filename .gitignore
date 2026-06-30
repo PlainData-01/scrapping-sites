@@ -19,6 +19,7 @@ output/screenshots/
 output/*.html
 output/*.pdf
 output/proposta-*
+output/leads/
 storage/*.db
 
 # IDE / OS

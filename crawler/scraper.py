@@ -69,14 +69,27 @@ async def _get_browser() -> Browser:
 
 
 async def close_browser() -> None:
-    """Fecha o browser e libera recursos."""
+    """Fecha o browser e libera recursos do Playwright."""
     global _browser, _playwright
     if _browser:
-        await _browser.close()
+        try:
+            for context in list(_browser.contexts):
+                await context.close()
+        except Exception:
+            pass
+        try:
+            await _browser.close()
+        except Exception:
+            pass
         _browser = None
     if _playwright:
-        await _playwright.stop()
+        try:
+            await _playwright.stop()
+        except Exception:
+            pass
         _playwright = None
+    # Permite ao event loop finalizar transports de subprocesso no Windows.
+    await asyncio.sleep(0.25)
 
 
 async def _extract_colors(page: Page) -> list[str]:
@@ -388,9 +401,13 @@ async def _intercept_whatsapp_click(page: Page) -> str | None:
     selectors = [
         'a[href*="wa.me"]',
         'a[href*="whatsapp"]',
+        'a[href*="api.whatsapp.com"]',
         '.elementor-button:has-text("WhatsApp")',
         'a:has-text("WhatsApp")',
         'a:has-text("Chamar")',
+        'button:has-text("WhatsApp")',
+        'button:has-text("Chamar")',
+        'button:has-text("Iniciar Conversa")',
         '[class*="whatsapp"]',
     ]
 
@@ -433,12 +450,16 @@ async def scrape_page(
     url: str,
     screenshot_dir: Path | None = None,
     max_retries: int = 3,
+    fast_mode: bool = False,
 ) -> dict | None:
     """
     Faz scraping de uma página com Playwright.
 
-    Inclui scroll para lazy load, retry com backoff e screenshot full-page.
+    fast_mode=True: timeout reduzido (10s), sem screenshot, sem espera longa.
+    Usado na prospecção para ser mais rápido.
     """
+    timeout = 10_000 if fast_mode else 30_000
+    take_screenshot = not fast_mode
     screenshot_dir = screenshot_dir or (OUTPUT_DIR / "screenshots")
     screenshot_dir.mkdir(parents=True, exist_ok=True)
 
@@ -447,6 +468,7 @@ async def scrape_page(
     screenshot_path = screenshot_dir / f"{domain}_{safe_path}.png"
 
     for attempt in range(max_retries):
+        context = None
         try:
             browser = await _get_browser()
             context = await browser.new_context(
@@ -470,29 +492,33 @@ async def scrape_page(
 
             page.on("request", handle_request)
 
-            await page.goto(url, wait_until="domcontentloaded", timeout=30000)
+            await page.goto(url, wait_until="domcontentloaded", timeout=timeout)
 
-            await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-            await page.wait_for_timeout(2000)
-
-            await asyncio.sleep(random.uniform(1, 3))
+            if fast_mode:
+                await page.wait_for_timeout(500)
+            else:
+                await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+                await page.wait_for_timeout(2000)
+                await asyncio.sleep(random.uniform(1, 3))
 
             data = await _extract_page_content(page, url)
 
             js_results = await page.evaluate(WHATSAPP_JS)
 
             click_url: str | None = None
-            if not (js_results or {}).get("whatsapp_url") and not whatsapp_numbers:
+            if not fast_mode and not (js_results or {}).get("whatsapp_url") and not whatsapp_numbers:
                 click_url = await _intercept_whatsapp_click(page)
 
             _apply_contact_extraction(
                 data["contacts"], js_results or {}, whatsapp_numbers, click_url
             )
 
-            await page.screenshot(full_page=True, path=str(screenshot_path))
-            data["screenshot_path"] = str(screenshot_path)
+            if take_screenshot:
+                await page.screenshot(full_page=True, path=str(screenshot_path))
+                data["screenshot_path"] = str(screenshot_path)
+            else:
+                data["screenshot_path"] = ""
 
-            await context.close()
             return data
 
         except Exception as exc:
@@ -505,5 +531,11 @@ async def scrape_page(
                 await asyncio.sleep(wait)
             else:
                 logger.error("Falha definitiva ao scrapear %s", url)
+        finally:
+            if context:
+                try:
+                    await context.close()
+                except Exception:
+                    pass
 
     return None

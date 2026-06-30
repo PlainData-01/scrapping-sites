@@ -404,6 +404,24 @@ def _prioritize_pages(
     return priority
 
 
+def priorizar_paginas_prospeccao(urls: list[str], max_pages: int = 8) -> list[str]:
+    """Reordena URLs priorizando páginas de serviço sobre blog/legal."""
+    prioridade_alta = [
+        "servico", "tratamento", "sobre", "especialidade",
+        "procedimento", "clinica", "home", "index",
+    ]
+    prioridade_baixa = [
+        "blog", "post", "artigo", "politica", "termos",
+        "cookies", "privacidade", "sitemap",
+    ]
+
+    alta = [u for u in urls if any(p in u.lower() for p in prioridade_alta)]
+    baixa = [u for u in urls if any(p in u.lower() for p in prioridade_baixa)]
+    media = [u for u in urls if u not in alta and u not in baixa]
+
+    return (alta + media + baixa)[:max_pages]
+
+
 async def get_all_pages(base_url: str, max_pages: int | None = None) -> list[str]:
     """
     Descobre páginas internas priorizando institucionais sobre posts de blog.

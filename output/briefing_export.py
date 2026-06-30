@@ -1147,5 +1147,9 @@ async def generate_briefing(site_data: SiteData, analysis: dict) -> str:
     )
 
     briefing_path.write_text(markdown, encoding="utf-8")
+    from output.site_injector import build_image_catalog, save_site_snapshot
+
+    catalog = build_image_catalog(site_data)
+    save_site_snapshot(site_data, asset_mapping, catalog)
     logger.info("Briefing gerado: %s (%d linhas)", briefing_path, markdown.count("\n") + 1)
     return str(briefing_path)

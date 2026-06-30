@@ -7,13 +7,53 @@ import json
 import logging
 import re
 import shutil
+import subprocess
+import sys
 from pathlib import Path
 
 from config import OUTPUT_DIR, SiteData
+from output.site_injector import inject_scraped_content
 
 logger = logging.getLogger(__name__)
 
 SITES_OUTPUT_DIR = Path(OUTPUT_DIR) / "sites"
+
+
+async def _run_command(
+    cmd: list[str],
+    *,
+    cwd: str | Path | None = None,
+    timeout: float = 300,
+) -> tuple[int, str, str]:
+    """
+    Executa comando externo via subprocess.run em thread separada.
+
+    Evita o bug do asyncio no Windows (ValueError: I/O operation on closed pipe)
+    que ocorre com create_subprocess_exec + ProactorEventLoop.
+    """
+    resolved = list(cmd)
+    if resolved and sys.platform == "win32":
+        path = shutil.which(resolved[0])
+        if path:
+            resolved[0] = path
+
+    def _sync() -> tuple[int, str, str]:
+        try:
+            result = subprocess.run(
+                resolved,
+                cwd=str(cwd) if cwd else None,
+                capture_output=True,
+                timeout=timeout,
+                text=True,
+                errors="replace",
+            )
+            return result.returncode, result.stdout or "", result.stderr or ""
+        except subprocess.TimeoutExpired:
+            return -1, "", f"Timeout após {int(timeout)}s"
+        except FileNotFoundError:
+            raise
+
+    return await asyncio.to_thread(_sync)
 
 DEFAULT_TREATMENTS = [
     "invisalign",
@@ -224,8 +264,11 @@ O projeto deve ser production-ready, com foco em conversão, SEO e identidade vi
 
 ### Estrutura de pastas
 
+IMPORTANTE: crie os arquivos DIRETAMENTE na raiz do diretório de trabalho
+atual (onde está BUILD_PROMPT.md). NÃO crie subpasta com o nome do domínio.
+
 ```
-{domain_slug}/
+./
 ├── app/
 │   ├── layout.tsx              # Layout global com header, footer, WhatsApp flutuante
 │   ├── page.tsx                # Home
@@ -393,14 +436,206 @@ Crie os arquivos nesta ordem para eu poder testar incrementalmente:
 20. Ajustes finais de SEO e Schema.org
 
 Crie todos os arquivos necessários para um projeto funcional completo.
+
+OBRIGATÓRIO para o site funcionar: app/layout.tsx, app/page.tsx,
+app/tratamentos/page.tsx, app/tratamentos/[slug]/page.tsx (para cada slug),
+postcss.config.mjs e next.config. Sem app/page.tsx o servidor retorna 404.
+
+NOTA: lib/constants.ts, lib/images.ts e components/home/{{Stats,Hero,About}}.tsx
+serão SOBRESCRITOS automaticamente pelo pipeline com dados reais do scraping
+(contatos, fotos, números). Use imports de @/lib/constants e @/lib/images.
 """
 
     return prompt
 
 
+CRITICAL_ROUTE_FILES = (
+    "app/layout.tsx",
+    "app/page.tsx",
+    "app/tratamentos/page.tsx",
+    "postcss.config.mjs",
+)
+
+
+def _missing_critical_files(project_dir: Path) -> list[str]:
+    """Lista arquivos de rota obrigatórios ausentes no projeto gerado."""
+    return [
+        rel for rel in CRITICAL_ROUTE_FILES
+        if not (project_dir / rel).exists()
+    ]
+
+
+def _scaffold_missing_routes(project_dir: Path, analysis: dict) -> list[str]:
+    """
+    Preenche rotas mínimas quando a geração via Claude Code ficou incompleta.
+    Retorna a lista de arquivos criados.
+    """
+    created: list[str] = []
+    business_name = analysis.get("business_name", "Site")
+    business_type = analysis.get("business_type", "negócio local")
+
+    postcss = project_dir / "postcss.config.mjs"
+    if not postcss.exists():
+        postcss.write_text(
+            '/** @type {import("postcss-load-config").Config} */\n'
+            "const config = { plugins: { tailwindcss: {}, autoprefixer: {} } };\n"
+            "export default config;\n",
+            encoding="utf-8",
+        )
+        created.append("postcss.config.mjs")
+
+    layout = project_dir / "app" / "layout.tsx"
+    if not layout.exists():
+        layout.parent.mkdir(parents=True, exist_ok=True)
+        layout.write_text(
+            f'''import type {{ Metadata }} from "next";
+import "./globals.css";
+
+export const metadata: Metadata = {{
+  title: "{business_name}",
+  description: "{business_type}",
+}};
+
+export default function RootLayout({{ children }}: {{ children: React.ReactNode }}) {{
+  return (
+    <html lang="pt-BR">
+      <body>{{children}}</body>
+    </html>
+  );
+}}
+''',
+            encoding="utf-8",
+        )
+        created.append("app/layout.tsx")
+
+    page = project_dir / "app" / "page.tsx"
+    if not page.exists():
+        page.parent.mkdir(parents=True, exist_ok=True)
+        page.write_text(
+            f'''export default function HomePage() {{
+  return (
+    <main className="mx-auto max-w-4xl px-6 py-20">
+      <h1 className="text-4xl font-bold">{business_name}</h1>
+      <p className="mt-4 text-lg text-gray-600">{business_type}</p>
+      <p className="mt-8">
+        <a href="/tratamentos" className="text-blue-600 underline">
+          Ver tratamentos
+        </a>
+      </p>
+    </main>
+  );
+}}
+''',
+            encoding="utf-8",
+        )
+        created.append("app/page.tsx")
+
+    trat_index = project_dir / "app" / "tratamentos" / "page.tsx"
+    if not trat_index.exists():
+        trat_index.parent.mkdir(parents=True, exist_ok=True)
+        trat_index.write_text(
+            f'''import Link from "next/link";
+
+export default function TratamentosPage() {{
+  return (
+    <main className="mx-auto max-w-4xl px-6 py-20">
+      <h1 className="text-3xl font-bold">Tratamentos — {business_name}</h1>
+      <p className="mt-4">
+        <Link href="/" className="text-blue-600 underline">Voltar ao início</Link>
+      </p>
+    </main>
+  );
+}}
+''',
+            encoding="utf-8",
+        )
+        created.append("app/tratamentos/page.tsx")
+
+    slug_page = project_dir / "app" / "tratamentos" / "[slug]" / "page.tsx"
+    if not slug_page.exists():
+        slug_page.parent.mkdir(parents=True, exist_ok=True)
+        slug_page.write_text(
+            '''export default function TratamentoSlugPage({
+  params,
+}: {
+  params: { slug: string };
+}) {
+  return (
+    <main className="mx-auto max-w-4xl px-6 py-20">
+      <h1 className="text-3xl font-bold capitalize">
+        {params.slug.replace(/-/g, " ")}
+      </h1>
+    </main>
+  );
+}
+''',
+            encoding="utf-8",
+        )
+        created.append("app/tratamentos/[slug]/page.tsx")
+
+    return created
+
+
+async def _repair_incomplete_project(
+    project_path: str,
+    site_data: SiteData,
+    analysis: dict,
+) -> list[str]:
+    """
+    Detecta projeto incompleto, tenta continuação via Claude Code e, se
+    necessário, aplica scaffold mínimo para evitar 404 na raiz.
+    """
+    project_dir = Path(project_path)
+    missing = _missing_critical_files(project_dir)
+    if not missing:
+        return []
+
+    logger.warning(
+        "Projeto incompleto em %s — arquivos ausentes: %s",
+        project_path,
+        ", ".join(missing),
+    )
+
+    if _check_claude_code_available():
+        continuation = (
+            "O projeto Next.js neste diretório está INCOMPLETO. "
+            f"Faltam estes arquivos obrigatórios: {', '.join(missing)}. "
+            "Leia BUILD_PROMPT.md e crie TODOS os arquivos que faltam, "
+            "especialmente app/layout.tsx, app/page.tsx e as rotas em "
+            "app/tratamentos/. Não crie subpastas extras — use a raiz atual."
+        )
+        await _execute_claude_code(
+            continuation, project_path, site_data, max_turns=40
+        )
+        missing = _missing_critical_files(project_dir)
+        if not missing:
+            logger.info("Continuação via Claude Code completou os arquivos ausentes.")
+            return []
+
+    created = _scaffold_missing_routes(project_dir, analysis or {})
+    if created:
+        logger.warning(
+            "Scaffold mínimo aplicado (Claude Code incompleto): %s",
+            ", ".join(created),
+        )
+    return created
+
+
 def _check_claude_code_available() -> bool:
     """Verifica se o Claude Code CLI está instalado e disponível no PATH."""
-    return shutil.which("claude") is not None
+    for name in ("claude", "claude.cmd", "claude.exe", "claude.ps1"):
+        if shutil.which(name):
+            return True
+    return False
+
+
+def _resolve_claude_command() -> str:
+    """Resolve o caminho completo do Claude Code CLI neste sistema."""
+    for name in ("claude", "claude.cmd", "claude.exe", "claude.ps1"):
+        path = shutil.which(name)
+        if path:
+            return path
+    return "claude"
 
 
 async def _execute_claude_code(
@@ -424,44 +659,53 @@ async def _execute_claude_code(
         )
         return ""
 
+    claude_cmd = _resolve_claude_command()
+    logger.info("Comando Claude Code resolvido: %s", claude_cmd)
+
+    prompt_file = project_dir / "BUILD_PROMPT.md"
+    prompt_file.write_text(prompt, encoding="utf-8")
+    logger.info("Prompt salvo em %s (%d chars) — evita limite de linha de comando no Windows", prompt_file, len(prompt))
+
+    short_prompt = (
+        "Leia e execute integralmente todas as instruções em BUILD_PROMPT.md "
+        "neste diretório. Crie todos os arquivos do projeto Next.js conforme especificado."
+    )
+
     logger.info(
         "Executando Claude Code CLI para %s (isso pode levar alguns minutos)...",
         site_data.domain,
     )
 
     cmd = [
-        "claude",
+        claude_cmd,
         "--print",
         "--output-format", "json",
         "--max-turns", str(max_turns),
         "--allowedTools", "Read,Write,Edit,Bash,Glob,Grep",
         "--permission-mode", "acceptEdits",
-        prompt,
+        short_prompt,
     ]
 
+    logger.info(
+        "Disparando subprocess Claude Code CLI. Comando: %s",
+        " ".join(cmd[:5]) + " ... [prompt via BUILD_PROMPT.md, %d chars]" % len(prompt),
+    )
+
     try:
-        process = await asyncio.create_subprocess_exec(
-            *cmd,
-            cwd=str(project_dir),
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
+        returncode, stdout, stderr = await _run_command(
+            cmd, cwd=project_dir, timeout=900,
         )
 
-        stdout, stderr = await asyncio.wait_for(
-            process.communicate(),
-            timeout=900,
-        )
-
-        if process.returncode != 0:
+        if returncode != 0:
             logger.error(
                 "Claude Code CLI retornou erro (code %s): %s",
-                process.returncode,
-                stderr.decode("utf-8", errors="ignore")[:2000],
+                returncode,
+                stderr[:2000],
             )
             return str(project_dir)
 
         try:
-            result = json.loads(stdout.decode("utf-8"))
+            result = json.loads(stdout)
             logger.info(
                 "Claude Code concluído. Turnos: %s | Duração: %ss | Custo: $%s",
                 result.get("num_turns", "?"),
@@ -473,19 +717,15 @@ async def _execute_claude_code(
 
         return str(project_dir)
 
-    except asyncio.TimeoutError:
+    except FileNotFoundError as exc:
         logger.error(
-            "Claude Code CLI excedeu o timeout de 15 minutos. "
-            "Processo pode estar incompleto em: %s", project_dir,
+            "Comando '%s' não encontrado. Verifique se o Claude Code CLI "
+            "está instalado e no PATH. Erro: %s", cmd[0], exc,
         )
-        try:
-            process.kill()
-        except Exception:
-            pass
         return str(project_dir)
 
     except Exception as exc:
-        logger.error("Erro ao executar Claude Code CLI: %s", exc)
+        logger.error("Erro ao executar Claude Code CLI: %s", exc, exc_info=True)
         return str(project_dir)
 
 
@@ -502,36 +742,22 @@ async def _post_process_project(project_path: str) -> dict:
         return status
 
     try:
-        install_proc = await asyncio.create_subprocess_exec(
-            "npm", "install",
-            cwd=str(project_dir),
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
+        install_code, _, install_err = await _run_command(
+            ["npm", "install"], cwd=project_dir, timeout=300,
         )
-        _, install_err = await asyncio.wait_for(
-            install_proc.communicate(), timeout=300,
-        )
-        status["npm_install"] = install_proc.returncode == 0
+        status["npm_install"] = install_code == 0
 
         if not status["npm_install"]:
-            status["errors"] = install_err.decode("utf-8", errors="ignore")[:1000]
+            status["errors"] = install_err[:1000]
             return status
 
-        build_proc = await asyncio.create_subprocess_exec(
-            "npm", "run", "build",
-            cwd=str(project_dir),
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
+        build_code, _, build_err = await _run_command(
+            ["npm", "run", "build"], cwd=project_dir, timeout=300,
         )
-        _, build_err = await asyncio.wait_for(
-            build_proc.communicate(), timeout=300,
-        )
-        status["build_ok"] = build_proc.returncode == 0
+        status["build_ok"] = build_code == 0
         if not status["build_ok"]:
-            status["errors"] = build_err.decode("utf-8", errors="ignore")[:1000]
+            status["errors"] = build_err[:1000]
 
-    except asyncio.TimeoutError:
-        status["errors"] = "Timeout durante npm install/build"
     except FileNotFoundError:
         status["errors"] = "npm não encontrado no PATH"
     except Exception as exc:
@@ -554,6 +780,8 @@ async def build_site(
     """
     post_status: dict = {"npm_install": False, "build_ok": False, "errors": ""}
 
+    logger.info("build_site() iniciado. briefing_path=%r", briefing_path)
+
     if not briefing_path or not Path(briefing_path).exists():
         logger.warning("Briefing não encontrado: %s", briefing_path)
         return "", post_status
@@ -571,8 +799,16 @@ async def build_site(
     project_path = str(SITES_OUTPUT_DIR / domain_slug)
 
     if _check_claude_code_available():
+        logger.info(
+            "Claude Code CLI detectado (%s). Iniciando geração do projeto...",
+            _resolve_claude_command(),
+        )
         project_path = await _execute_claude_code(prompt, project_path, site_data)
         if project_path:
+            await _repair_incomplete_project(
+                project_path, site_data, analysis or {}
+            )
+            inject_scraped_content(project_path, site_data, analysis or {})
             post_status = await _post_process_project(project_path)
             if post_status["build_ok"]:
                 logger.info("✅ Projeto validado: npm install e build concluídos com sucesso")
@@ -593,5 +829,8 @@ async def build_site(
             "para automação completa, ou cole %s manualmente no Cursor Agent.",
             prompt_path,
         )
+        project_dir = Path(project_path)
+        project_dir.mkdir(parents=True, exist_ok=True)
+        inject_scraped_content(project_path, site_data, analysis or {})
 
     return project_path, post_status

@@ -47,6 +47,40 @@ Para os campos de design_direction, evite sugestões que serviriam para qualquer
 Não inclua markdown, apenas o JSON puro."""
 
 
+SYSTEM_PROMPT_PROSPECCAO = """Você é um consultor de marketing digital especializado em prospecção.
+Analise os dados do site fornecido e retorne SOMENTE um JSON válido com esta estrutura:
+{
+  "business_name": "nome do negócio detectado",
+  "business_type": "tipo de negócio (ex: clínica odontológica)",
+  "current_site_problems": ["problema 1", "problema 2", "problema 3"],
+  "urgency_points": ["por que o cliente precisa mudar agora"],
+  "niche_category": "saude_premium | industrial_b2b | varejo_local | servicos_profissionais | gastronomia | educacao | imobiliario | tecnologia | outro"
+}
+
+Seja específico e baseie-se no conteúdo real extraído. Não inclua markdown, apenas JSON puro."""
+
+
+def _build_analysis_prompt_prospeccao(site_data: SiteData) -> str:
+    """Prompt reduzido para modo prospecção."""
+    lines = [
+        f"Domínio: {site_data.domain}",
+        f"Total de páginas: {len(site_data.pages)}",
+        "",
+        "=== PROBLEMAS DE SEO ===",
+    ]
+    for issue in site_data.seo_issues[:10]:
+        lines.append(f"- {issue}")
+    lines.append("")
+    lines.append("=== CONTEÚDO (resumo) ===")
+    for page in site_data.pages[:5]:
+        lines.append(f"\n--- {page.get('url', '')} ---")
+        for section in page.get("sections", [])[:2]:
+            text = section.get("text", "")[:300]
+            if text:
+                lines.append(text)
+    return "\n".join(lines)
+
+
 def _build_analysis_prompt(site_data: SiteData) -> str:
     """Monta prompt consolidado com dados de todas as páginas."""
     lines = [
@@ -98,35 +132,52 @@ def _parse_json_response(text: str) -> dict:
         raise
 
 
-async def analyze_site(site_data: SiteData) -> dict:
+async def analyze_site(
+    site_data: SiteData,
+    modo_prospeccao: bool = False,
+) -> dict:
     """
     Analisa o site com uma única chamada consolidada à API Claude.
 
-    Retorna dict estruturado com análise do negócio.
+    modo_prospeccao=True: prompt reduzido, só extrai o essencial
+    para gerar mensagem de WhatsApp e qualificar o lead.
     """
     if not ANTHROPIC_API_KEY:
         logger.error("ANTHROPIC_API_KEY não configurada")
-        return _fallback_analysis(site_data)
+        return _fallback_analysis(site_data, modo_prospeccao=modo_prospeccao)
 
     client = anthropic.AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
-    prompt = _build_analysis_prompt(site_data)
+    if modo_prospeccao:
+        system_prompt = SYSTEM_PROMPT_PROSPECCAO
+        prompt = _build_analysis_prompt_prospeccao(site_data)
+        max_tokens = 1024
+    else:
+        system_prompt = SYSTEM_PROMPT
+        prompt = _build_analysis_prompt(site_data)
+        max_tokens = 4096
 
     try:
         response = await client.messages.create(
             model="claude-sonnet-4-6",
-            max_tokens=4096,
-            system=SYSTEM_PROMPT,
+            max_tokens=max_tokens,
+            system=system_prompt,
             messages=[{"role": "user", "content": prompt}],
         )
 
         content = response.content[0].text
         analysis = _parse_json_response(content)
-        logger.info("Análise IA concluída para %s", site_data.domain)
+        if modo_prospeccao:
+            logger.info(
+                "Análise IA (prospecção) concluída para %s — ~%d tokens max",
+                site_data.domain, max_tokens,
+            )
+        else:
+            logger.info("Análise IA concluída para %s", site_data.domain)
         return analysis
 
     except Exception as exc:
         logger.error("Falha na análise com Claude API: %s", exc)
-        return _fallback_analysis(site_data)
+        return _fallback_analysis(site_data, modo_prospeccao=modo_prospeccao)
 
 
 def _detect_niche_fallback(site_data: SiteData) -> str:
@@ -154,17 +205,31 @@ def _detect_niche_fallback(site_data: SiteData) -> str:
     return "outro"
 
 
-def _fallback_analysis(site_data: SiteData) -> dict:
+def _fallback_analysis(
+    site_data: SiteData,
+    modo_prospeccao: bool = False,
+) -> dict:
     """Análise básica sem IA quando a API falha."""
-    return {
+    base = {
         "business_name": site_data.domain,
         "business_type": "Negócio local",
-        "business_description": f"Empresa com presença online em {site_data.domain}.",
-        "target_audience": "Clientes locais e regionais",
-        "current_site_problems": site_data.seo_issues[:5] or [
+        "current_site_problems": site_data.seo_issues[:3] or [
             "Site precisa de modernização",
             "Oportunidades de melhoria em SEO",
         ],
+        "urgency_points": [
+            "Concorrentes já possuem sites modernos",
+            "SEO deficiente reduz visibilidade no Google",
+        ],
+        "niche_category": _detect_niche_fallback(site_data),
+    }
+    if modo_prospeccao:
+        return base
+
+    return {
+        **base,
+        "business_description": f"Empresa com presença online em {site_data.domain}.",
+        "target_audience": "Clientes locais e regionais",
         "value_proposition": "Presença digital para alcançar mais clientes",
         "suggested_improvements": [
             "Redesign responsivo moderno",
@@ -177,12 +242,7 @@ def _fallback_analysis(site_data: SiteData) -> dict:
             "Otimização para Google",
             "Suporte e manutenção inclusos",
         ],
-        "urgency_points": [
-            "Concorrentes já possuem sites modernos",
-            "SEO deficiente reduz visibilidade no Google",
-        ],
         "estimated_page_count": max(5, len(site_data.pages)),
-        "niche_category": _detect_niche_fallback(site_data),
     }
 
 

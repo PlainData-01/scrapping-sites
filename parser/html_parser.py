@@ -70,7 +70,7 @@ def detect_page_type(url: str, title: str = "", h1: str = "") -> str:
 
 
 def extract_contacts(html: str) -> dict:
-    """Extrai contatos do HTML fonte via regex (WhatsApp, telefones, emails)."""
+    """Extrai contatos do HTML fonte via regex (WhatsApp, telefones, emails, redes)."""
     contacts: dict = {}
 
     wa_matches = WA_ME_PATTERN.findall(html)
@@ -95,6 +95,18 @@ def extract_contacts(html: str) -> dict:
     ]
     if real_emails:
         contacts["emails"] = list(dict.fromkeys(real_emails[:3]))
+
+    for pattern, key in (
+        (r"https?://(?:www\.)?instagram\.com/[\w.\-]+/?", "instagram"),
+        (r"https?://(?:www\.)?facebook\.com/[\w.\-]+/?", "facebook"),
+    ):
+        match = re.search(pattern, html, re.I)
+        if match:
+            contacts[key] = match.group(0).rstrip("/")
+
+    cro_match = re.search(r"CRO[-\s]?[A-Z]{2}\s*\d+", html, re.I)
+    if cro_match:
+        contacts["cro"] = cro_match.group(0).strip()
 
     return contacts
 
@@ -208,6 +220,9 @@ def _merge_page_contacts(html_contacts: dict, addresses: list[str]) -> dict:
         "addresses": addresses,
         "whatsapp": html_contacts.get("whatsapp", ""),
         "telefone": html_contacts.get("telefones", [""])[0] if html_contacts.get("telefones") else "",
+        "instagram": html_contacts.get("instagram", ""),
+        "facebook": html_contacts.get("facebook", ""),
+        "cro": html_contacts.get("cro", ""),
     }
     return merged
 

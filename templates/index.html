@@ -1,0 +1,1844 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Scraping Agent</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0d0d0d;
+      --surface: #1a1a1a;
+      --surface-2: #222222;
+      --border: #2a2a2a;
+      --text: #e8e8e8;
+      --text-muted: #666;
+      --accent: #7c6af7;
+      --accent-hover: #9488f9;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --error: #ef4444;
+      --info: #38bdf8;
+      --radius: 8px;
+      --sidebar-w: 240px;
+      --header-h: 52px;
+      --transition: 150ms ease;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Inter", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      font-size: 14px;
+    }
+    button, input, select, textarea { font-family: inherit; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { color: var(--accent-hover); }
+
+    /* Header */
+    .app-header {
+      height: var(--header-h);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      flex-shrink: 0;
+      z-index: 100;
+    }
+    .header-left { display: flex; align-items: center; gap: 14px; }
+    .menu-toggle {
+      display: none;
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      padding: 6px 10px;
+      cursor: pointer;
+      font-size: 16px;
+      transition: border-color var(--transition);
+    }
+    .menu-toggle:hover { border-color: var(--accent); }
+    .app-title { font-size: 15px; font-weight: 600; letter-spacing: -0.02em; }
+    .app-title span { color: var(--accent); }
+    .header-right { display: flex; align-items: center; gap: 12px; }
+    .version-tag { font-size: 11px; color: var(--text-muted); }
+    .status-badge {
+      font-size: 12px;
+      padding: 4px 12px;
+      border-radius: 999px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      transition: all var(--transition);
+    }
+    .status-badge.running {
+      color: var(--warning);
+      border-color: var(--warning);
+      animation: pulse-badge 1.5s ease-in-out infinite;
+    }
+    .status-badge.ok { color: var(--success); border-color: var(--success); }
+    .status-badge.error { color: var(--error); border-color: var(--error); }
+    @keyframes pulse-badge {
+      0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(245,158,11,0.4); }
+      50% { opacity: 0.85; box-shadow: 0 0 0 6px rgba(245,158,11,0); }
+    }
+
+    /* Shell */
+    .app-shell { display: flex; flex: 1; overflow: hidden; }
+    .sidebar {
+      width: var(--sidebar-w);
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      transition: transform var(--transition), width var(--transition);
+      z-index: 90;
+    }
+    .sidebar-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 80;
+    }
+    .nav-list { padding: 12px 8px; flex: 1; overflow-y: auto; }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      padding: 10px 12px;
+      border: none;
+      border-radius: var(--radius);
+      background: none;
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      text-align: left;
+      transition: background var(--transition), color var(--transition);
+      margin-bottom: 2px;
+    }
+    .nav-item:hover { background: var(--surface-2); color: var(--text); }
+    .nav-item.active { background: rgba(124,106,247,0.15); color: var(--accent); }
+    .nav-icon { font-size: 16px; width: 22px; text-align: center; }
+    .sidebar-footer {
+      border-top: 1px solid var(--border);
+      padding: 12px;
+      flex-shrink: 0;
+    }
+    .sidebar-footer-title {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+    .mini-lead {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      cursor: pointer;
+      transition: background var(--transition);
+      gap: 6px;
+    }
+    .mini-lead:hover { background: var(--surface-2); }
+    .mini-lead-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+    .mini-lead-empty { font-size: 11px; color: var(--text-muted); padding: 4px 8px; }
+
+    .main-content { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+    .view { display: none; flex: 1; overflow: hidden; flex-direction: column; }
+    .view.active { display: flex; }
+    .view-header {
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .view-header h2 { font-size: 18px; font-weight: 600; }
+    .view-header p { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+    .view-body { flex: 1; overflow-y: auto; padding: 20px 24px; }
+
+    /* Cards & metrics */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .metric-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      transition: border-color var(--transition);
+    }
+    .metric-card:hover { border-color: #3a3a3a; }
+    .metric-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+    .metric-value { font-size: 28px; font-weight: 700; color: var(--text); }
+    .metric-sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+    .section-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      margin-bottom: 10px;
+      transition: border-color var(--transition);
+    }
+    .card:hover { border-color: #3a3a3a; }
+
+    .alert-box {
+      background: rgba(245,158,11,0.08);
+      border: 1px solid rgba(245,158,11,0.3);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      margin-bottom: 10px;
+      font-size: 13px;
+    }
+    .alert-box strong { color: var(--warning); }
+
+    .system-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+    .sys-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 12px;
+      transition: border-color var(--transition);
+    }
+    .sys-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .sys-dot.ok { background: var(--success); }
+    .sys-dot.err { background: var(--error); }
+
+    .dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 900px) { .dash-grid { grid-template-columns: 1fr; } }
+
+    .lead-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+    .lead-row:last-child { border-bottom: none; }
+    .crm-badge {
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-weight: 600;
+      text-transform: capitalize;
+    }
+    .crm-badge.pendente { background: rgba(245,158,11,0.15); color: var(--warning); }
+    .crm-badge.abordado { background: rgba(56,189,248,0.15); color: var(--info); }
+    .crm-badge.interessado { background: rgba(124,106,247,0.15); color: var(--accent); }
+    .crm-badge.fechado { background: rgba(34,197,94,0.15); color: var(--success); }
+    .crm-badge.descartado, .crm-badge.perdido { background: rgba(239,68,68,0.1); color: var(--error); }
+
+    /* Forms */
+    .form-group { margin-bottom: 14px; }
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+    .form-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+    .form-row .form-group { flex: 1; min-width: 140px; margin-bottom: 0; }
+    input[type="text"], input[type="url"], input[type="number"], select, textarea {
+      width: 100%;
+      padding: 10px 12px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-size: 14px;
+      outline: none;
+      transition: border-color var(--transition);
+    }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+    textarea { resize: vertical; min-height: 80px; }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .toggle-row input { width: auto; accent-color: var(--accent); }
+
+    .pages-row { display: flex; align-items: center; gap: 12px; }
+    input[type="range"] { flex: 1; accent-color: var(--accent); }
+    .pages-value { font-weight: 600; min-width: 28px; text-align: center; color: var(--accent); }
+
+    .btn {
+      padding: 10px 16px;
+      border-radius: var(--radius);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all var(--transition);
+      white-space: nowrap;
+    }
+    .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
+    .btn-secondary { background: var(--surface-2); color: var(--text); border-color: var(--border); }
+    .btn-secondary:hover:not(:disabled) { border-color: var(--accent); }
+    .btn-sm { padding: 6px 12px; font-size: 12px; font-weight: 500; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn.running { background: var(--surface-2); color: var(--warning); border-color: var(--warning); }
+    .btn.wa { border-color: rgba(34,197,94,0.4); color: var(--success); }
+    .btn.danger { border-color: rgba(239,68,68,0.4); color: var(--error); }
+
+    .cost-warning {
+      font-size: 12px;
+      color: var(--warning);
+      background: rgba(245,158,11,0.08);
+      border: 1px solid rgba(245,158,11,0.25);
+      border-radius: var(--radius);
+      padding: 8px 12px;
+      margin-top: 8px;
+      display: none;
+    }
+    .cost-warning.show { display: block; }
+
+    /* Progress */
+    .progress-wrap { margin: 16px 0; display: none; }
+    .progress-wrap.show { display: block; }
+    .progress-bar {
+      height: 6px;
+      background: var(--surface-2);
+      border-radius: 999px;
+      overflow: hidden;
+      margin-top: 6px;
+    }
+    .progress-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 999px;
+      transition: width 0.3s ease;
+      width: 0%;
+    }
+    .progress-label { font-size: 12px; color: var(--text-muted); }
+
+    /* Prospect layout */
+    .prospect-layout {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      flex: 1;
+      overflow: hidden;
+    }
+    .prospect-main { overflow-y: auto; padding: 20px 24px; border-right: 1px solid var(--border); }
+    .prospect-logs {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: #000;
+    }
+    .prospect-logs-header {
+      padding: 10px 14px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      flex-shrink: 0;
+    }
+    #prospect-log-terminal {
+      flex: 1;
+      font-family: "Cascadia Code", Consolas, monospace;
+      font-size: 11px;
+      line-height: 1.5;
+      padding: 12px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    @media (max-width: 1100px) {
+      .prospect-layout { grid-template-columns: 1fr; }
+      .prospect-logs { max-height: 220px; border-top: 1px solid var(--border); }
+    }
+
+    .leads-list { display: flex; flex-direction: column; gap: 10px; }
+    .lead-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      transition: border-color var(--transition);
+    }
+    .lead-card:hover { border-color: #3a3a3a; }
+    .lead-card.erro { border-color: rgba(239,68,68,0.4); }
+    .lead-card.prioridade-alta { border-color: rgba(124,106,247,0.6); box-shadow: 0 0 0 1px rgba(124,106,247,0.15); }
+    .lead-card.descartado { opacity: 0.7; }
+    .lead-badges { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+    .badge-prioridade { font-size: 11px; padding: 2px 8px; border-radius: 999px; font-weight: 600; }
+    .badge-prioridade.alta { background: rgba(239,68,68,0.15); color: #f87171; }
+    .badge-prioridade.media { background: rgba(245,158,11,0.15); color: var(--warning); }
+    .badge-prioridade.baixa { background: rgba(255,255,255,0.08); color: var(--text-muted); }
+    .badge-score { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--border); font-weight: 600; }
+    .badge-plataforma { font-size: 11px; padding: 2px 8px; border-radius: 999px; font-weight: 500; text-transform: capitalize; }
+    .badge-plataforma.wix { background: rgba(249,115,22,0.15); color: #fb923c; }
+    .badge-plataforma.wordpress { background: rgba(59,130,246,0.15); color: #60a5fa; }
+    .badge-plataforma.squarespace { background: rgba(168,85,247,0.15); color: #c084fc; }
+    .badge-plataforma.webflow { background: rgba(34,197,94,0.15); color: #4ade80; }
+    .badge-plataforma.hostinger { background: rgba(236,72,153,0.15); color: #f472b6; }
+    .badge-plataforma.custom, .badge-plataforma.desconhecida { background: var(--surface-2); color: var(--text-muted); }
+    .lead-header { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
+    .lead-nome { font-size: 14px; font-weight: 600; }
+    .lead-meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    .lead-problema { font-size: 13px; color: var(--accent); margin: 8px 0; font-style: italic; }
+    .lead-score-motivo { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
+    .lead-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+    .lead-status { font-size: 11px; padding: 2px 8px; border-radius: 999px; }
+    .lead-status.pronto { background: rgba(34,197,94,0.15); color: var(--success); }
+    .lead-status.erro { background: rgba(239,68,68,0.15); color: var(--error); }
+    .lead-status.pendente { background: rgba(245,158,11,0.15); color: var(--warning); }
+    .descartados-section { margin-top: 20px; border-top: 1px solid var(--border); padding-top: 14px; }
+    .descartados-toggle {
+      width: 100%; text-align: left; padding: 10px 12px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); color: var(--text-muted); font-size: 13px; cursor: pointer;
+      transition: border-color var(--transition);
+    }
+    .descartados-toggle:hover { border-color: var(--accent); color: var(--text); }
+    .descartados-list { margin-top: 10px; display: none; flex-direction: column; gap: 8px; }
+    .descartados-list.open { display: flex; }
+
+    /* CRM Table */
+    .crm-toolbar { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+    .crm-toolbar .form-group { margin: 0; min-width: 160px; }
+    .crm-table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); }
+    .crm-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .crm-table th {
+      text-align: left; padding: 10px 14px; font-size: 11px;
+      text-transform: uppercase; letter-spacing: 0.06em;
+      color: var(--text-muted); background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+    .crm-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    .crm-table tr:last-child td { border-bottom: none; }
+    .crm-table tbody tr { cursor: pointer; transition: background var(--transition); }
+    .crm-table tbody tr:hover { background: var(--surface); }
+    .crm-table tbody tr.expanded { background: var(--surface); }
+    .contato-cell {
+      cursor: pointer;
+      white-space: nowrap;
+      border-bottom: 1px dashed transparent;
+      transition: color var(--transition);
+    }
+    .contato-cell:hover { color: var(--accent); border-bottom-color: var(--accent); }
+    .badge-terceirizado {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: #3d3520;
+      color: #f0c040;
+      margin-left: 6px;
+    }
+    .crm-expand {
+      display: none;
+      padding: 16px;
+      background: var(--surface-2);
+      border-top: 1px solid var(--border);
+    }
+    .crm-expand.open { display: block; }
+    .crm-expand-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 768px) { .crm-expand-grid { grid-template-columns: 1fr; } }
+    .note-list { margin-bottom: 10px; max-height: 120px; overflow-y: auto; }
+    .note-item { font-size: 12px; padding: 6px 0; border-bottom: 1px solid var(--border); color: var(--text-muted); }
+    .crm-actions-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+
+    /* Analysis */
+    .analise-layout {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      flex: 1;
+      overflow: hidden;
+    }
+    .analise-sidebar {
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      background: var(--surface);
+    }
+    .analise-sidebar-header {
+      padding: 10px 14px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+    }
+    .history-item {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 10px 12px; cursor: pointer;
+      border-bottom: 1px solid var(--border);
+      transition: background var(--transition);
+    }
+    .history-item:hover { background: var(--surface-2); }
+    .history-item.active { background: rgba(124,106,247,0.12); }
+    .history-item img { width: 18px; height: 18px; border-radius: 4px; flex-shrink: 0; margin-top: 2px; }
+    .history-domain { font-size: 12px; font-weight: 500; word-break: break-all; }
+    .history-meta { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+    .analise-main { display: flex; flex-direction: column; overflow: hidden; }
+    .analise-form { padding: 16px 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .mode-toggle {
+      display: inline-flex;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin-top: 8px;
+    }
+    .mode-btn {
+      padding: 6px 14px; font-size: 12px; background: none; border: none;
+      color: var(--text-muted); cursor: pointer;
+      transition: background var(--transition), color var(--transition);
+    }
+    .mode-btn.active { background: var(--accent); color: #fff; }
+    .analise-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .tabs { display: flex; border-bottom: 1px solid var(--border); flex-shrink: 0; overflow-x: auto; }
+    .tab {
+      padding: 10px 16px; font-size: 12px; background: none; border: none;
+      color: var(--text-muted); cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: color var(--transition), border-color var(--transition);
+      white-space: nowrap;
+    }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .tab-panel { display: none; flex: 1; overflow: hidden; flex-direction: column; }
+    .tab-panel.active { display: flex; }
+    #log-terminal {
+      flex: 1; background: #000;
+      font-family: "Cascadia Code", Consolas, monospace;
+      font-size: 12px; line-height: 1.5;
+      padding: 12px; overflow-y: auto;
+      white-space: pre-wrap; word-break: break-all;
+    }
+    .log-line { margin-bottom: 1px; }
+    .log-line.info { color: var(--text); }
+    .log-line.warning { color: var(--warning); }
+    .log-line.error { color: var(--error); }
+    .content-panel { flex: 1; overflow-y: auto; padding: 16px 20px; }
+    .content-panel pre {
+      white-space: pre-wrap; word-break: break-word;
+      font-family: "Cascadia Code", Consolas, monospace;
+      font-size: 13px; line-height: 1.6;
+    }
+    .content-panel .markdown h1, .content-panel .markdown h2, .content-panel .markdown h3 { margin: 16px 0 8px; font-weight: 600; }
+    .content-panel .markdown h1 { font-size: 20px; }
+    .content-panel .markdown h2 { font-size: 16px; color: var(--accent); }
+    .content-panel .markdown h3 { font-size: 14px; }
+    .content-panel .markdown p { margin-bottom: 10px; font-size: 13px; line-height: 1.6; color: #ccc; }
+    .content-panel .markdown ul { margin: 8px 0 8px 20px; font-size: 13px; color: #ccc; }
+    .content-panel .markdown code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+    .email-subject { font-size: 15px; font-weight: 600; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+  .seo-list { list-style: none; }
+    .seo-list li { font-size: 12px; color: var(--text-muted); padding: 6px 0; border-bottom: 1px solid var(--border); }
+    .contact-item { font-size: 13px; padding: 4px 0; display: flex; gap: 8px; }
+    .contact-item .label { color: var(--text-muted); min-width: 72px; }
+    .badge-inline { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 999px; }
+    .badge-inline.ok { background: rgba(34,197,94,0.15); color: var(--success); }
+    .badge-inline.warn { background: rgba(245,158,11,0.15); color: var(--warning); }
+    .badge-inline.none { background: var(--surface-2); color: var(--text-muted); }
+
+    /* Config */
+    .config-grid { max-width: 560px; }
+    .config-key-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 12px 0; border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+    .key-preview { font-family: monospace; color: var(--text-muted); font-size: 12px; }
+    .key-hint { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+  .empty-state { color: var(--text-muted); font-size: 13px; text-align: center; padding: 40px 20px; }
+    .hint { font-size: 11px; color: var(--text-muted); margin-top: 6px; }
+    kbd {
+      font-size: 10px; padding: 2px 6px;
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: 4px; font-family: inherit;
+    }
+
+    /* Toast */
+    #toast-container {
+      position: fixed; bottom: 24px; right: 24px;
+      display: flex; flex-direction: column; gap: 8px;
+      z-index: 2000; pointer-events: none;
+    }
+    .toast {
+      padding: 12px 18px; border-radius: var(--radius);
+      font-size: 13px; font-weight: 500;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      opacity: 0; transform: translateY(12px);
+      transition: opacity 0.3s, transform 0.3s;
+      pointer-events: auto;
+      max-width: 360px;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.success { border-color: var(--success); color: var(--success); }
+    .toast.error { border-color: var(--error); color: var(--error); }
+    .toast.warning { border-color: var(--warning); color: var(--warning); }
+    .toast.info { border-color: var(--info); color: var(--info); }
+
+    @media (max-width: 768px) {
+      .menu-toggle { display: block; }
+      .sidebar {
+        position: fixed; top: var(--header-h); left: 0; bottom: 0;
+        transform: translateX(-100%);
+      }
+      .sidebar.open { transform: translateX(0); }
+      .sidebar-overlay.open { display: block; }
+      .analise-layout { grid-template-columns: 1fr; }
+      .analise-sidebar { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="header-left">
+    <button class="menu-toggle" id="menu-toggle" aria-label="Menu">☰</button>
+    <h1 class="app-title"><span>🔍</span> Scraping Agent</h1>
+  </div>
+  <div class="header-right">
+    <span class="version-tag" id="version-tag">v—</span>
+    <span id="status-badge" class="status-badge">Pronto</span>
+  </div>
+</header>
+
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar">
+    <nav class="nav-list">
+      <button class="nav-item active" data-view="dashboard"><span class="nav-icon">📊</span> Dashboard</button>
+      <button class="nav-item" data-view="prospectar"><span class="nav-icon">🎯</span> Prospectar</button>
+      <button class="nav-item" data-view="leads"><span class="nav-icon">👥</span> Leads</button>
+      <button class="nav-item" data-view="analise"><span class="nav-icon">🔬</span> Análise de Site</button>
+      <button class="nav-item" data-view="config"><span class="nav-icon">⚙️</span> Config</button>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="sidebar-footer-title">Últimos leads</div>
+      <div id="sidebar-leads"></div>
+    </div>
+  </aside>
+
+  <main class="main-content">
+
+    <!-- DASHBOARD -->
+    <section class="view active" id="view-dashboard">
+      <div class="view-header">
+        <h2>Dashboard</h2>
+        <p>Visão geral da prospecção e do pipeline</p>
+      </div>
+      <div class="view-body">
+        <div class="metrics-grid" id="dash-metrics">
+          <div class="metric-card"><div class="metric-label">Leads</div><div class="metric-value" id="m-leads">—</div><div class="metric-sub" id="m-leads-sub"></div></div>
+          <div class="metric-card"><div class="metric-label">Abordados</div><div class="metric-value" id="m-abordados">—</div><div class="metric-sub" id="m-abordados-sub"></div></div>
+          <div class="metric-card"><div class="metric-label">Interessados</div><div class="metric-value" id="m-interessados">—</div><div class="metric-sub" id="m-interessados-sub"></div></div>
+          <div class="metric-card"><div class="metric-label">Fechados</div><div class="metric-value" id="m-fechados">—</div><div class="metric-sub" id="m-fechados-sub"></div></div>
+        </div>
+        <div id="dash-alerts"></div>
+        <div class="dash-grid">
+          <div>
+            <div class="section-title">Últimos leads</div>
+            <div class="card" id="dash-leads-list"><div class="empty-state">Carregando...</div></div>
+            <button class="btn btn-primary" style="margin-top:12px" id="btn-go-prospect">🎯 Ir para Prospectar</button>
+          </div>
+          <div>
+            <div class="section-title">Status do sistema</div>
+            <div class="system-row" id="dash-system">
+              <div class="sys-pill"><span class="sys-dot"></span> Carregando...</div>
+            </div>
+            <div class="hint" style="margin-top:12px">Atalhos: <kbd>D</kbd> Dashboard · <kbd>P</kbd> Prospectar · <kbd>L</kbd> Leads · <kbd>A</kbd> Análise</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PROSPECTAR -->
+    <section class="view" id="view-prospectar">
+      <div class="prospect-layout">
+        <div class="prospect-main">
+          <h2 style="font-size:14px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:16px">Prospectar no Google Maps</h2>
+          <div class="form-row" style="margin-bottom:16px">
+            <div class="form-group">
+              <label for="prospect-query">Busca</label>
+              <input type="text" id="prospect-query" list="query-suggestions" value="clínica odontológica" />
+              <datalist id="query-suggestions">
+                <option value="clínica odontológica"></option>
+                <option value="dentista"></option>
+                <option value="ortodontista"></option>
+                <option value="implantodontista"></option>
+                <option value="clínica estética"></option>
+                <option value="dermatologista"></option>
+              </datalist>
+            </div>
+            <div class="form-group">
+              <label for="prospect-cidade">Cidade</label>
+              <input type="text" id="prospect-cidade" list="city-suggestions" value="Brasília DF" />
+              <datalist id="city-suggestions">
+                <option value="Asa Sul, Brasília DF"></option>
+                <option value="Asa Norte, Brasília DF"></option>
+                <option value="Lago Sul, Brasília DF"></option>
+                <option value="Brasília DF"></option>
+              </datalist>
+            </div>
+            <div class="form-group" style="max-width:130px">
+              <label for="prospect-prioridade">Prioridade mín.</label>
+              <select id="prospect-prioridade">
+                <option value="todas">Todas</option>
+                <option value="media">Média+</option>
+                <option value="alta">Alta</option>
+              </select>
+            </div>
+            <div class="form-group" style="max-width:120px">
+              <label for="prospect-max">Leads: <span id="prospect-max-val">20</span></label>
+              <input type="range" id="prospect-max" min="3" max="50" step="1" value="20" />
+            </div>
+          </div>
+          <div class="form-row" style="margin-bottom:16px">
+            <label class="toggle-row"><input type="checkbox" id="prospect-whatsapp-only" /> Só com WhatsApp</label>
+            <button class="btn btn-primary" id="btn-prospect">🔍 Buscar e Prospectar</button>
+          </div>
+          <div class="progress-wrap" id="prospect-progress">
+            <div class="progress-label" id="prospect-progress-label">Processando...</div>
+            <div class="progress-bar"><div class="progress-fill" id="prospect-progress-fill"></div></div>
+          </div>
+          <h2 style="font-size:14px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin:20px 0 12px">Leads encontrados</h2>
+          <div class="leads-list" id="leads-list"><div class="empty-state">Nenhum lead processado ainda.</div></div>
+        </div>
+        <div class="prospect-logs">
+          <div class="prospect-logs-header">Logs da prospecção</div>
+          <div id="prospect-log-terminal"><span style="color:#444">Aguardando prospecção...</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- LEADS CRM -->
+    <section class="view" id="view-leads">
+      <div class="view-header">
+        <h2>Leads CRM</h2>
+        <p>Gerencie status, notas e follow-ups</p>
+      </div>
+      <div class="view-body">
+        <div class="crm-toolbar">
+          <div class="form-group"><label for="crm-filter-status">Status</label>
+            <select id="crm-filter-status">
+              <option value="">Todos</option>
+              <option value="pendente">Pendente</option>
+              <option value="abordado">Abordado</option>
+              <option value="interessado">Interessado</option>
+              <option value="fechado">Fechado</option>
+              <option value="descartado">Descartado</option>
+              <option value="perdido">Perdido</option>
+            </select>
+          </div>
+          <div class="form-group" style="flex:2;min-width:200px"><label for="crm-search">Buscar</label>
+            <input type="text" id="crm-search" placeholder="Nome, domínio, plataforma..." />
+          </div>
+          <button class="btn btn-secondary" id="btn-crm-refresh">↻ Atualizar</button>
+        </div>
+        <div class="crm-table-wrap">
+          <table class="crm-table">
+            <thead><tr><th>Nome</th><th>Score</th><th>Plataforma</th><th>Contato</th><th>Status CRM</th><th>Ações</th></tr></thead>
+            <tbody id="crm-tbody"><tr><td colspan="6" class="empty-state">Carregando...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ANÁLISE -->
+    <section class="view" id="view-analise">
+      <div class="analise-layout">
+        <aside class="analise-sidebar">
+          <div class="analise-sidebar-header">Histórico</div>
+          <div id="history-list"><div class="empty-state" style="padding:20px">Carregando...</div></div>
+        </aside>
+        <div class="analise-main">
+          <div class="analise-form">
+            <div class="form-row">
+              <div class="form-group" style="flex:2"><label for="url-input">URL do site</label>
+                <input type="url" id="url-input" placeholder="https://www.cliente.com.br" />
+              </div>
+              <div class="form-group" style="max-width:160px"><label for="pages-slider">Páginas: <span class="pages-value" id="pages-value">15</span></label>
+                <input type="range" id="pages-slider" min="5" max="50" step="5" value="15" />
+              </div>
+              <div class="form-group" style="max-width:140px;align-self:flex-end">
+                <button class="btn btn-primary" id="btn-run" style="width:100%">▶ Rodar</button>
+              </div>
+            </div>
+            <div class="mode-toggle">
+              <button class="mode-btn active" id="mode-fast" data-mode="fast">⚡ Rápido (prospect)</button>
+              <button class="mode-btn" id="mode-complete" data-mode="complete">🔬 Completo</button>
+            </div>
+            <div class="cost-warning" id="cost-warning">⚠️ Modo completo usa mais tokens de IA — custo estimado ~US$ 0,85 por site.</div>
+            <p class="hint">Ctrl+Enter para iniciar · <kbd>Esc</kbd> cancela</p>
+          </div>
+          <div class="analise-content">
+            <div class="tabs" id="analise-tabs">
+              <button class="tab active" data-tab="resumo">📋 Resumo</button>
+              <button class="tab" data-tab="logs">📟 Logs</button>
+              <button class="tab" data-tab="email">📧 Mensagem</button>
+              <button class="tab" data-tab="prompt">🎯 Prompt</button>
+              <button class="tab" data-tab="briefing">📄 Briefing</button>
+              <button class="tab" data-tab="seo">🔍 SEO</button>
+            </div>
+            <div class="tab-panel active" id="panel-resumo"><div class="content-panel" id="resumo-content"><div class="empty-state">Selecione um site ou rode uma análise.</div></div></div>
+            <div class="tab-panel" id="panel-logs"><div id="log-terminal"><span style="color:#444">Aguardando execução...</span></div></div>
+            <div class="tab-panel" id="panel-email"><div class="content-panel" id="email-content"><div class="empty-state">Nenhuma mensagem gerada.</div></div></div>
+            <div class="tab-panel" id="panel-prompt"><div class="content-panel" id="prompt-content"><div class="empty-state">Nenhum prompt disponível.</div></div></div>
+            <div class="tab-panel" id="panel-briefing"><div class="content-panel" id="briefing-content"><div class="empty-state">Nenhum briefing disponível.</div></div></div>
+            <div class="tab-panel" id="panel-seo"><div class="content-panel" id="seo-content"><div class="empty-state">Nenhum dado SEO.</div></div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CONFIG -->
+    <section class="view" id="view-config">
+      <div class="view-header">
+        <h2>Configurações</h2>
+        <p>Parâmetros da interface e do pipeline</p>
+      </div>
+      <div class="view-body">
+        <div class="config-grid">
+          <div class="section-title">Chaves de API</div>
+          <div class="card">
+            <div class="config-key-row"><span>Anthropic API</span><span class="key-preview" id="cfg-anthropic">—</span></div>
+            <div class="config-key-row"><span>Google Maps API</span><span class="key-preview" id="cfg-maps">—</span></div>
+            <p class="key-hint">Para alterar chaves, edite o arquivo <code>.env</code> e reinicie o servidor.</p>
+          </div>
+          <div class="section-title" style="margin-top:20px">Pipeline</div>
+          <form id="config-form">
+            <div class="form-group"><label for="cfg-delay">Delay entre leads (s)</label><input type="number" id="cfg-delay" min="1" max="60" /></div>
+            <div class="form-group"><label for="cfg-timeout">Timeout por lead (s)</label><input type="number" id="cfg-timeout" min="30" max="600" /></div>
+            <div class="form-group"><label for="cfg-pages">Páginas por lead</label><input type="number" id="cfg-pages" min="3" max="50" /></div>
+            <div class="form-group"><label for="cfg-cache">Cache (dias)</label><input type="number" id="cfg-cache" min="1" max="30" /></div>
+            <div class="form-group"><label for="cfg-regioes">Regiões premium (uma por linha)</label><textarea id="cfg-regioes" rows="5"></textarea></div>
+            <button type="submit" class="btn btn-primary">💾 Salvar configurações</button>
+          </form>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div id="toast-container"></div>
+
+<script>
+const $ = (sel, ctx = document) => ctx.querySelector(sel);
+const $$ = (sel, ctx = document) => [...ctx.querySelectorAll(sel)];
+
+let currentView = "dashboard";
+let running = false;
+let prospectRunning = false;
+let prospectPollTimer = null;
+let lastProspectLogCount = 0;
+let prospectWasRunning = false;
+let eventSource = null;
+let selectedDomain = null;
+let historyData = [];
+let leadsData = [];
+let descartadosData = [];
+let crmLeads = [];
+let crmStatuses = {};
+let expandedCrmDomain = null;
+let analiseMode = "fast";
+
+function escHtml(str) {
+  if (str == null) return "";
+  return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function extractDomain(url) {
+  try {
+    return new URL(url.startsWith("http") ? url : `https://${url}`).hostname.replace(/^www\./, "");
+  } catch { return String(url || "").replace(/^www\./, ""); }
+}
+
+function formatContatoCell(lead) {
+  const wa = lead.whatsapp || "";
+  const tel = lead.telefone || "";
+  const raw = wa || tel;
+  if (!raw) return `<span style="color:var(--text-muted)">—</span>`;
+  const digits = raw.replace(/\D/g, "");
+  let display = raw;
+  if (digits.length >= 12 && digits.startsWith("55")) {
+    const ddd = digits.slice(2, 4);
+    const num = digits.slice(4);
+    display = num.length === 9
+      ? `(${ddd}) ${num.slice(0, 5)}-${num.slice(5)}`
+      : `(${ddd}) ${num.slice(0, 4)}-${num.slice(4)}`;
+  } else if (digits.length === 11) {
+    display = `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+  } else if (digits.length === 10) {
+    display = `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+  }
+  const isMobile = (digits.length >= 11 && digits[digits.length - 9] === "9")
+    || (digits.length >= 12 && digits[4] === "9");
+  const icon = isMobile ? "📱" : "☎️";
+  return `<span class="contato-cell" data-copy="${escHtml(digits || raw)}" title="${escHtml(raw)}">${icon} ${escHtml(display)}</span>`;
+}
+
+async function copyContato(text) {
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+    showToast("Copiado!", "success");
+  } catch {
+    showToast("Não foi possível copiar", "error");
+  }
+}
+
+function domainSlug(domain) {
+  return String(domain || "").replace(/\./g, "_");
+}
+
+function showToast(msg, type = "success") {
+  const container = $("#toast-container");
+  const toast = document.createElement("div");
+  toast.className = `toast ${type}`;
+  toast.textContent = msg;
+  container.appendChild(toast);
+  requestAnimationFrame(() => toast.classList.add("show"));
+  setTimeout(() => {
+    toast.classList.remove("show");
+    setTimeout(() => toast.remove(), 300);
+  }, 4000);
+}
+
+function setStatus(text, cls = "") {
+  const badge = $("#status-badge");
+  badge.textContent = text;
+  badge.className = "status-badge" + (cls ? ` ${cls}` : "");
+}
+
+function setView(name) {
+  currentView = name;
+  $$(".nav-item").forEach((n) => n.classList.toggle("active", n.dataset.view === name));
+  $$(".view").forEach((v) => v.classList.toggle("active", v.id === `view-${name}`));
+  closeSidebar();
+  if (name === "dashboard") loadDashboard();
+  if (name === "leads") loadCrmLeads();
+  if (name === "analise") loadHistory();
+  if (name === "config") loadConfig();
+  if (name === "prospectar") { loadCrmStatuses(); checkProspectStatus(); }
+}
+
+function openSidebar() {
+  $("#sidebar").classList.add("open");
+  $("#sidebar-overlay").classList.add("open");
+}
+function closeSidebar() {
+  $("#sidebar").classList.remove("open");
+  $("#sidebar-overlay").classList.remove("open");
+}
+
+$("#menu-toggle").addEventListener("click", () => {
+  $("#sidebar").classList.contains("open") ? closeSidebar() : openSidebar();
+});
+$("#sidebar-overlay").addEventListener("click", closeSidebar);
+$$(".nav-item").forEach((btn) => btn.addEventListener("click", () => setView(btn.dataset.view)));
+$("#btn-go-prospect").addEventListener("click", () => setView("prospectar"));
+
+// --- Dashboard ---
+async function loadDashboard() {
+  try {
+    const [dashRes, sysRes] = await Promise.all([
+      fetch("/api/dashboard"),
+      fetch("/api/system/status"),
+    ]);
+    const dash = await dashRes.json();
+    const sys = await sysRes.json();
+    const m = dash.metricas || {};
+    $("#m-leads").textContent = m.leads_total ?? 0;
+    $("#m-leads-sub").textContent = m.leads_hoje ? `+${m.leads_hoje} hoje` : "";
+    $("#m-abordados").textContent = m.abordados_total ?? 0;
+    $("#m-abordados-sub").textContent = m.abordados_hoje ? `+${m.abordados_hoje} hoje` : "";
+    $("#m-interessados").textContent = m.interessados_total ?? 0;
+    $("#m-interessados-sub").textContent = m.taxa_conversao ? `${m.taxa_conversao}% conversão` : "";
+    $("#m-fechados").textContent = m.fechados_total ?? 0;
+    $("#version-tag").textContent = `v${dash.version || sys.version || "?"}`;
+
+    const alerts = m.alertas_whatsapp || [];
+    const alertsEl = $("#dash-alerts");
+    if (alerts.length) {
+      alertsEl.innerHTML = alerts.map((a) =>
+        `<div class="alert-box">⚠️ <strong>${escHtml(a.nome)}</strong> — sem resposta há ${a.horas}h (WhatsApp)</div>`
+      ).join("");
+    } else alertsEl.innerHTML = "";
+
+    const ultimos = dash.ultimos_leads || [];
+    renderSidebarLeads(ultimos);
+    const list = $("#dash-leads-list");
+    if (!ultimos.length) {
+      list.innerHTML = `<div class="empty-state">Nenhum lead ainda.</div>`;
+    } else {
+      list.innerHTML = ultimos.map((l) => {
+        const st = l.crm_status || "pendente";
+        const dom = l.domain || extractDomain(l.website || "");
+        return `<div class="lead-row"><span>${escHtml(l.nome || dom)}</span><span class="crm-badge ${st}">${st}</span></div>`;
+      }).join("");
+    }
+
+    $("#dash-system").innerHTML = [
+      { key: "anthropic", label: "Anthropic" },
+      { key: "google_maps", label: "Google Maps" },
+      { key: "claude_code", label: "Claude Code" },
+    ].map(({ key, label }) => {
+      const s = sys[key] || {};
+      return `<div class="sys-pill"><span class="sys-dot ${s.ok ? "ok" : "err"}"></span>${label}: ${escHtml(s.label || (s.ok ? "OK" : "Offline"))}</div>`;
+    }).join("");
+  } catch {
+    showToast("Erro ao carregar dashboard", "error");
+  }
+}
+
+function renderSidebarLeads(leads) {
+  const el = $("#sidebar-leads");
+  if (!leads || !leads.length) {
+    el.innerHTML = `<div class="mini-lead-empty">Nenhum lead</div>`;
+    return;
+  }
+  el.innerHTML = leads.slice(0, 5).map((l) => {
+    const st = l.crm_status || "pendente";
+    const name = (l.nome || l.domain || extractDomain(l.website || "")).slice(0, 22);
+    return `<div class="mini-lead" data-domain="${escHtml(l.domain || extractDomain(l.website || ""))}">
+      <span class="mini-lead-name">${escHtml(name)}</span>
+      <span class="crm-badge ${st}">${st.slice(0, 3)}</span>
+    </div>`;
+  }).join("");
+  $$(".mini-lead", el).forEach((item) => {
+    item.addEventListener("click", () => {
+      setView("leads");
+      $("#crm-search").value = item.dataset.domain;
+      loadCrmLeads();
+    });
+  });
+}
+
+// --- Prospectar ---
+const prospectMax = $("#prospect-max");
+const prospectMaxVal = $("#prospect-max-val");
+prospectMax.addEventListener("input", () => { prospectMaxVal.textContent = prospectMax.value; });
+
+const PRIORIDADE_RANK = { baixa: 0, media: 1, alta: 2 };
+
+function filterProspectLeads(leads) {
+  let filtered = [...leads];
+  const minP = $("#prospect-prioridade").value;
+  if (minP !== "todas") {
+    const minRank = PRIORIDADE_RANK[minP] ?? 0;
+    filtered = filtered.filter((l) => (PRIORIDADE_RANK[l.prioridade] ?? 0) >= minRank);
+  }
+  if ($("#prospect-whatsapp-only").checked) {
+    filtered = filtered.filter((l) => l.whatsapp || l.whatsapp_link);
+  }
+  return filtered;
+}
+
+function prioridadeBadge(prioridade) {
+  const map = { alta: "🔴 Alta", media: "🟡 Média", baixa: "⚪ Baixa" };
+  const cls = prioridade || "media";
+  return `<span class="badge-prioridade ${cls}">${map[cls] || cls}</span>`;
+}
+
+function plataformaBadge(plataforma) {
+  if (!plataforma) return "";
+  const cls = plataforma.toLowerCase().replace(/\s+/g, "");
+  return `<span class="badge-plataforma ${cls}">${escHtml(plataforma)}</span>`;
+}
+
+function getLeadDomain(lead) {
+  return lead.domain || extractDomain(lead.website || "");
+}
+
+async function loadCrmStatuses() {
+  try {
+    const res = await fetch("/api/leads/status");
+    crmStatuses = await res.json();
+  } catch { crmStatuses = {}; }
+}
+
+function getCrmStatus(lead) {
+  const dom = getLeadDomain(lead);
+  return lead.crm_status || crmStatuses[dom]?.status || "pendente";
+}
+
+function renderLeadCard(lead, idx, opts = {}) {
+  const status = lead.status || "pendente";
+  const prioridade = lead.prioridade || "media";
+  const stars = lead.avaliacao ? `⭐ ${lead.avaliacao}` : "";
+  const phone = lead.whatsapp ? `📱 ${escHtml(lead.whatsapp)}` : (lead.telefone ? `📞 ${escHtml(lead.telefone)}` : "");
+  const waLink = lead.whatsapp_link || "";
+  const followupLink = lead.whatsapp_followup_link || "";
+  const score = lead.score != null ? lead.score : "";
+  const scoreMotivo = lead.score_motivo || lead.motivo_descarte || "";
+  const domain = getLeadDomain(lead);
+  const crmSt = getCrmStatus(lead);
+  const cardClass = ["lead-card", status === "erro" ? "erro" : "",
+    prioridade === "alta" && !opts.descartado ? "prioridade-alta" : "",
+    opts.descartado ? "descartado" : ""].filter(Boolean).join(" ");
+
+  const actions = status === "pronto" ? `
+    <div class="lead-actions">
+      <button class="btn btn-sm btn-secondary" data-action="copy" data-idx="${idx}" data-list="${opts.list || "leads"}">📋 Copiar msg</button>
+      ${waLink ? `<a class="btn btn-sm btn-secondary wa" href="${escHtml(waLink)}" target="_blank" rel="noopener">💬 WhatsApp</a>` : ""}
+      ${followupLink ? `<a class="btn btn-sm btn-secondary wa" href="${escHtml(followupLink)}" target="_blank" rel="noopener">📲 Follow-up</a>` : ""}
+      ${lead.website ? `<button class="btn btn-sm btn-secondary" data-action="site" data-url="${escHtml(lead.website)}">🌐 Ver site</button>` : ""}
+      ${crmSt === "abordado" ? `<button class="btn btn-sm btn-primary" data-action="gerar" data-url="${escHtml(lead.website || "")}" data-domain="${escHtml(domain)}">🏗️ Gerar site</button>` : ""}
+      <button class="btn btn-sm btn-secondary" data-action="abordado" data-domain="${escHtml(domain)}">✅ Abordado</button>
+    </div>` : "";
+
+  return `<div class="${cardClass}" data-domain="${escHtml(domain)}">
+    <div class="lead-badges">
+      ${!opts.descartado ? prioridadeBadge(prioridade) : ""}
+      ${score !== "" ? `<span class="badge-score">${score}/100</span>` : ""}
+      ${plataformaBadge(lead.plataforma_detectada)}
+      ${lead.site_terceirizado ? '<span class="badge-terceirizado">perfil 3º</span>' : ""}
+      <span class="crm-badge ${crmSt}">${crmSt}</span>
+    </div>
+    <div class="lead-header">
+      <div>
+        <div class="lead-nome">${escHtml(lead.nome || "—")}</div>
+        <div class="lead-meta">${stars} ${phone}</div>
+      </div>
+      <span class="lead-status ${status}">${opts.descartado ? "🚫 Descartado" : status === "pronto" ? "✅ Processado" : status === "erro" ? "❌ Erro" : "🟡 Pendente"}</span>
+    </div>
+    ${scoreMotivo ? `<div class="lead-score-motivo">${escHtml(scoreMotivo)}</div>` : ""}
+    ${lead.problema_principal ? `<div class="lead-problema">"${escHtml(lead.problema_principal)}"</div>` : ""}
+    ${lead.erro ? `<div class="lead-meta" style="color:var(--error)">${escHtml(lead.erro)}</div>` : ""}
+    ${actions}
+  </div>`;
+}
+
+function bindLeadCardActions(container, listName, data) {
+  container.querySelectorAll("[data-action]").forEach((btn) => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const action = btn.dataset.action;
+      if (action === "copy") {
+        const lead = data[parseInt(btn.dataset.idx, 10)];
+        copyText(lead?.mensagem_whatsapp || lead?.mensagem_completa || "");
+      } else if (action === "site") {
+        window.open(btn.dataset.url, "_blank");
+      } else if (action === "gerar") {
+        const url = btn.dataset.url;
+        if (!url) return showToast("Sem URL do site", "warning");
+        setView("analise");
+        $("#url-input").value = url;
+        analiseMode = "complete";
+        $("#mode-fast").classList.remove("active");
+        $("#mode-complete").classList.add("active");
+        $("#cost-warning").classList.add("show");
+        $("#pages-slider").value = 30;
+        $("#pages-value").textContent = "30";
+        showToast("Iniciando geração de site...", "info");
+        runAgent();
+      } else if (action === "abordado") {
+        await updateLeadStatus(btn.dataset.domain, "abordado");
+        await loadCrmStatuses();
+        renderLeads(leadsData, descartadosData);
+        renderSidebarLeads(crmLeads.slice(0, 5));
+      }
+    });
+  });
+}
+
+function renderLeads(leads, descartados = descartadosData) {
+  const filtered = filterProspectLeads(leads);
+  const list = $("#leads-list");
+  if (!filtered.length && !descartados.length) {
+    list.innerHTML = `<div class="empty-state">Nenhum lead processado ainda.</div>`;
+    return;
+  }
+  let html = filtered.length
+    ? filtered.map((lead, idx) => renderLeadCard(lead, leads.indexOf(lead), { list: "leads" })).join("")
+    : `<div class="empty-state">Nenhum lead qualificado com os filtros atuais.</div>`;
+  if (descartados.length) {
+    html += `<div class="descartados-section">
+      <button type="button" class="descartados-toggle" id="toggle-descartados">▶ Descartados (${descartados.length})</button>
+      <div class="descartados-list" id="descartados-list">
+        ${descartados.map((lead, idx) => renderLeadCard(lead, idx, { descartado: true, list: "descartados" })).join("")}
+      </div></div>`;
+  }
+  list.innerHTML = html;
+  bindLeadCardActions(list, "leads", leads);
+  const toggle = $("#toggle-descartados");
+  const descList = $("#descartados-list");
+  if (toggle && descList) {
+    toggle.addEventListener("click", () => {
+      const open = descList.classList.toggle("open");
+      toggle.textContent = `${open ? "▼" : "▶"} Descartados (${descartados.length})`;
+    });
+    bindLeadCardActions(descList, "descartados", descartados);
+  }
+}
+
+function appendProspectLog(line, level) {
+  const term = $("#prospect-log-terminal");
+  if (term.querySelector("span[style]")) term.innerHTML = "";
+  const div = document.createElement("div");
+  div.className = "log-line";
+  const upper = line.toUpperCase();
+  if (level === "error" || upper.includes("[ERROR]") || upper.includes("ERRO") || line.includes("❌")) div.classList.add("error");
+  else if (level === "warning" || upper.includes("[WARNING]") || line.includes("⚠")) div.classList.add("warning");
+  else div.classList.add("info");
+  div.textContent = line;
+  term.appendChild(div);
+  term.scrollTop = term.scrollHeight;
+}
+
+function clearProspectLogs() { $("#prospect-log-terminal").innerHTML = ""; }
+
+function setProspectRunning(isRunning) {
+  prospectRunning = isRunning;
+  const btn = $("#btn-prospect");
+  btn.disabled = isRunning;
+  btn.textContent = isRunning ? "⏹ Prospectando..." : "🔍 Buscar e Prospectar";
+  btn.classList.toggle("running", isRunning);
+  $("#prospect-progress").classList.toggle("show", isRunning);
+  if (!isRunning && !running) setStatus("Pronto", "");
+}
+
+function updateProspectProgress(atual, total, nome) {
+  const pct = total ? Math.round((atual / total) * 100) : 0;
+  $("#prospect-progress-fill").style.width = `${pct}%`;
+  $("#prospect-progress-label").textContent = total
+    ? `Processando ${atual}/${total}${nome ? ` — ${nome}` : ""}`
+    : "Processando...";
+}
+
+function stopProspectPolling() {
+  if (prospectPollTimer) { clearInterval(prospectPollTimer); prospectPollTimer = null; }
+}
+
+function startProspectPolling() {
+  stopProspectPolling();
+  pollProspectStatus();
+  prospectPollTimer = setInterval(pollProspectStatus, 3000);
+}
+
+async function applyProspectStatus(status, { notify = true } = {}) {
+  if (!status || status.status === "idle") return;
+  const logs = status.logs || [];
+  for (let i = lastProspectLogCount; i < logs.length; i++) {
+    const entry = logs[i];
+    appendProspectLog(typeof entry === "string" ? entry : entry.msg, typeof entry === "string" ? undefined : entry.level);
+  }
+  lastProspectLogCount = logs.length;
+  if (status.descartados) descartadosData = status.descartados;
+  if (status.leads) { leadsData = status.leads; await loadCrmStatuses(); renderLeads(leadsData, descartadosData); }
+  if (status.status === "running") {
+    prospectWasRunning = true;
+    setProspectRunning(true);
+    setStatus("Prospectando...", "running");
+    updateProspectProgress(status.atual || 0, status.total || 0, status.nome_atual);
+  }
+  if (status.status === "done") {
+    stopProspectPolling();
+    setProspectRunning(false);
+    updateProspectProgress(status.total || 0, status.total || 0, "Concluído");
+    setStatus("Concluído", "ok");
+    if (notify && prospectWasRunning) {
+      showToast(`✅ Prospecção concluída — ${status.leads?.length || 0} leads`);
+      loadDashboard();
+      loadCrmLeads();
+    }
+    prospectWasRunning = false;
+  }
+  if (status.status === "error") {
+    stopProspectPolling();
+    setProspectRunning(false);
+    setStatus("Erro", "error");
+    if (notify && prospectWasRunning) showToast(`❌ ${status.erro || "Erro na prospecção"}`, "error");
+    prospectWasRunning = false;
+  }
+}
+
+async function pollProspectStatus() {
+  try {
+    const res = await fetch("/api/prospect/status");
+    if (!res.ok) return;
+    await applyProspectStatus(await res.json());
+  } catch { /* ignore */ }
+}
+
+async function checkProspectStatus() {
+  try {
+    const res = await fetch("/api/prospect/status");
+    if (!res.ok) return;
+    const status = await res.json();
+    if (status.status === "running") {
+      lastProspectLogCount = 0;
+      clearProspectLogs();
+      leadsData = status.leads || [];
+      descartadosData = status.descartados || [];
+      await applyProspectStatus(status, { notify: false });
+      startProspectPolling();
+    } else if (status.leads?.length) {
+      leadsData = status.leads;
+      descartadosData = status.descartados || [];
+      await loadCrmStatuses();
+      renderLeads(leadsData, descartadosData);
+    }
+  } catch { /* ignore */ }
+}
+
+async function runProspect() {
+  if (prospectRunning) return;
+  const query = $("#prospect-query").value.trim();
+  const cidade = $("#prospect-cidade").value.trim();
+  const maxLeads = prospectMax.value;
+  if (!query || !cidade) { showToast("Preencha busca e cidade", "error"); return; }
+
+  setProspectRunning(true);
+  prospectWasRunning = true;
+  clearProspectLogs();
+  lastProspectLogCount = 0;
+  leadsData = [];
+  descartadosData = [];
+  renderLeads([], []);
+  updateProspectProgress(0, maxLeads, "");
+
+  const params = new URLSearchParams({ query, cidade, max_leads: maxLeads });
+  const prioridade = $("#prospect-prioridade").value;
+  if (prioridade !== "todas") params.set("prioridade_minima", prioridade);
+  if ($("#prospect-whatsapp-only").checked) params.set("somente_whatsapp", "1");
+
+  try {
+    const res = await fetch(`/prospect?${params}`);
+    const data = await res.json();
+    if (!data.ok) {
+      setProspectRunning(false);
+      showToast(data.error || "Não foi possível iniciar", "error");
+      if (data.status) await applyProspectStatus(data.status);
+      return;
+    }
+    appendProspectLog("Prospecção iniciada — acompanhando progresso...");
+    startProspectPolling();
+  } catch {
+    setProspectRunning(false);
+    setStatus("Erro", "error");
+    showToast("Erro ao iniciar prospecção", "error");
+  }
+}
+
+$("#btn-prospect").addEventListener("click", runProspect);
+$("#prospect-prioridade").addEventListener("change", () => renderLeads(leadsData, descartadosData));
+$("#prospect-whatsapp-only").addEventListener("change", () => renderLeads(leadsData, descartadosData));
+
+// --- CRM ---
+async function updateLeadStatus(domain, status) {
+  try {
+    const res = await fetch(`/api/leads/${encodeURIComponent(domain)}/status`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      showToast(`Status atualizado: ${status}`);
+      crmStatuses[domain] = { status, ...data };
+      return true;
+    }
+    showToast(data.error || "Erro ao atualizar", "error");
+  } catch { showToast("Erro de rede", "error"); }
+  return false;
+}
+
+const CRM_FLOW = ["pendente", "abordado", "interessado", "fechado"];
+
+function nextCrmStatus(current) {
+  const idx = CRM_FLOW.indexOf(current);
+  return idx >= 0 && idx < CRM_FLOW.length - 1 ? CRM_FLOW[idx + 1] : null;
+}
+
+async function loadCrmLeads() {
+  try {
+    const res = await fetch("/api/leads");
+    crmLeads = await res.json();
+    renderSidebarLeads(crmLeads);
+    renderCrmTable();
+  } catch { showToast("Erro ao carregar leads", "error"); }
+}
+
+function renderCrmTable() {
+  const statusFilter = $("#crm-filter-status").value;
+  const search = $("#crm-search").value.trim().toLowerCase();
+  let rows = crmLeads;
+  if (statusFilter) rows = rows.filter((l) => (l.crm_status || "pendente") === statusFilter);
+  if (search) {
+    rows = rows.filter((l) => {
+      const dom = l.domain || extractDomain(l.website || "");
+      return [l.nome, dom, l.plataforma_detectada, l.problema_principal].join(" ").toLowerCase().includes(search);
+    });
+  }
+  const tbody = $("#crm-tbody");
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="6" class="empty-state">Nenhum lead encontrado.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows.map((lead) => {
+    const dom = lead.domain || extractDomain(lead.website || "");
+    const st = lead.crm_status || "pendente";
+    const next = nextCrmStatus(st);
+    const expanded = expandedCrmDomain === dom;
+    const terceirizado = lead.site_terceirizado ? '<span class="badge-terceirizado">perfil 3º</span>' : "";
+    return `<tr data-domain="${escHtml(dom)}" class="${expanded ? "expanded" : ""}">
+      <td><strong>${escHtml(lead.nome || dom)}</strong>${terceirizado}<br><small style="color:var(--text-muted)">${escHtml(dom)}</small></td>
+      <td>${lead.score ?? "—"}</td>
+      <td>${escHtml(lead.plataforma_detectada || "—")}</td>
+      <td>${formatContatoCell(lead)}</td>
+      <td><span class="crm-badge ${st}">${st}</span></td>
+      <td>
+        <button class="btn btn-sm btn-secondary" data-crm-expand="${escHtml(dom)}">▼</button>
+        ${next ? `<button class="btn btn-sm btn-secondary" data-crm-advance="${escHtml(dom)}" data-next="${next}">→ ${next}</button>` : ""}
+        ${st !== "descartado" ? `<button class="btn btn-sm btn-danger" data-crm-discard="${escHtml(dom)}">🚫</button>` : ""}
+        ${st === "descartado" ? `<button class="btn btn-sm btn-secondary" data-crm-restore="${escHtml(dom)}">↩</button>` : ""}
+      </td>
+    </tr>
+    <tr class="crm-expand-row" data-expand-for="${escHtml(dom)}" style="display:${expanded ? "table-row" : "none"}">
+      <td colspan="6"><div class="crm-expand open" id="expand-${domainSlug(dom)}"></div></td>
+    </tr>`;
+  }).join("");
+
+  tbody.querySelectorAll(".contato-cell").forEach((el) => {
+    el.addEventListener("click", (e) => {
+      e.stopPropagation();
+      copyContato(el.dataset.copy);
+    });
+  });
+
+  tbody.querySelectorAll("[data-crm-expand]").forEach((btn) => {
+    btn.addEventListener("click", (e) => { e.stopPropagation(); toggleCrmExpand(btn.dataset.crmExpand); });
+  });
+  tbody.querySelectorAll("[data-crm-advance]").forEach((btn) => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      await updateLeadStatus(btn.dataset.crmAdvance, btn.dataset.next);
+      await loadCrmLeads();
+    });
+  });
+  tbody.querySelectorAll("[data-crm-discard]").forEach((btn) => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      await updateLeadStatus(btn.dataset.crmDiscard, "descartado");
+      await loadCrmLeads();
+    });
+  });
+  tbody.querySelectorAll("[data-crm-restore]").forEach((btn) => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      await updateLeadStatus(btn.dataset.crmRestore, "pendente");
+      await loadCrmLeads();
+    });
+  });
+  tbody.querySelectorAll("tr[data-domain]").forEach((tr) => {
+    tr.addEventListener("click", () => toggleCrmExpand(tr.dataset.domain));
+  });
+  if (expandedCrmDomain) loadCrmExpand(expandedCrmDomain);
+}
+
+async function toggleCrmExpand(domain) {
+  expandedCrmDomain = expandedCrmDomain === domain ? null : domain;
+  renderCrmTable();
+}
+
+async function loadCrmExpand(domain) {
+  const slug = domainSlug(domain);
+  const lead = crmLeads.find((l) => (l.domain || extractDomain(l.website || "")) === domain);
+  const el = $(`#expand-${slug}`);
+  if (!el || !lead) return;
+  let seoHtml = "<p style='color:var(--text-muted)'>Carregando SEO...</p>";
+  el.innerHTML = `<div class="crm-expand-grid">
+    <div><div class="section-title">Mensagem WhatsApp</div><pre style="font-size:12px;white-space:pre-wrap">${escHtml(lead.mensagem_whatsapp || "—")}</pre></div>
+    <div><div class="section-title">Problemas SEO</div><div id="seo-${slug}">${seoHtml}</div></div>
+    <div style="grid-column:1/-1"><div class="section-title">Notas</div>
+      <div class="note-list" id="notes-${slug}">${(lead.notas || []).map((n) => `<div class="note-item">${escHtml(typeof n === "string" ? n : n.texto)} <small>${escHtml((n.criado_em || "").slice(0, 16))}</small></div>`).join("") || "<span style='color:var(--text-muted)'>Sem notas</span>"}</div>
+      <textarea id="nota-input-${slug}" placeholder="Adicionar nota..." rows="2" style="width:100%"></textarea>
+      <button class="btn btn-sm btn-primary" style="margin-top:8px" data-save-nota="${escHtml(domain)}">💾 Salvar nota</button>
+    </div></div>`;
+  el.querySelector("[data-save-nota]")?.addEventListener("click", async () => {
+    const texto = $(`#nota-input-${slug}`)?.value.trim();
+    if (!texto) return;
+    const res = await fetch(`/api/leads/${encodeURIComponent(domain)}/nota`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nota: texto }),
+    });
+    const data = await res.json();
+    if (data.ok) { showToast("Nota salva"); await loadCrmLeads(); expandedCrmDomain = domain; }
+  });
+  try {
+    const seoRes = await fetch(`/api/site/${encodeURIComponent(domain)}/seo`);
+    const seo = await seoRes.json();
+    const issues = seo.seo_issues || [];
+    $(`#seo-${slug}`).innerHTML = issues.length
+      ? `<ul class="seo-list">${issues.map((s) => `<li>• ${escHtml(s)}</li>`).join("")}</ul>`
+      : `<p style="color:var(--text-muted)">Nenhum problema detectado ou site não analisado.</p>`;
+  } catch {
+    $(`#seo-${slug}`).innerHTML = `<p style="color:var(--error)">Erro ao carregar SEO</p>`;
+  }
+}
+
+$("#crm-filter-status").addEventListener("change", renderCrmTable);
+$("#crm-search").addEventListener("input", renderCrmTable);
+$("#btn-crm-refresh").addEventListener("click", loadCrmLeads);
+
+// --- Análise ---
+const slider = $("#pages-slider");
+const pagesValue = $("#pages-value");
+slider.addEventListener("input", () => { pagesValue.textContent = slider.value; });
+
+$$("#analise-tabs .tab").forEach((tab) => {
+  tab.addEventListener("click", () => activateAnaliseTab(tab.dataset.tab));
+});
+
+function activateAnaliseTab(name) {
+  $$("#analise-tabs .tab").forEach((t) => t.classList.toggle("active", t.dataset.tab === name));
+  $$(".analise-content .tab-panel").forEach((p) => p.classList.toggle("active", p.id === `panel-${name}`));
+}
+
+$("#mode-fast").addEventListener("click", () => {
+  analiseMode = "fast";
+  $("#mode-fast").classList.add("active");
+  $("#mode-complete").classList.remove("active");
+  $("#cost-warning").classList.remove("show");
+  slider.value = 8; pagesValue.textContent = "8";
+});
+$("#mode-complete").addEventListener("click", () => {
+  analiseMode = "complete";
+  $("#mode-complete").classList.add("active");
+  $("#mode-fast").classList.remove("active");
+  $("#cost-warning").classList.add("show");
+  slider.value = 30; pagesValue.textContent = "30";
+});
+
+function faviconUrl(domain) {
+  return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=32`;
+}
+
+function formatDate(iso) {
+  if (!iso) return "—";
+  try { return new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }); }
+  catch { return iso; }
+}
+
+function statusIcon(site) {
+  if (site.build_ok) return "✅";
+  if (site.has_site) return "⚠️";
+  return "⚠️";
+}
+
+async function loadHistory() {
+  try {
+    const res = await fetch("/api/history");
+    historyData = await res.json();
+    renderHistory();
+  } catch {
+    $("#history-list").innerHTML = `<div class="empty-state">Erro ao carregar</div>`;
+  }
+}
+
+function renderHistory() {
+  const list = $("#history-list");
+  if (!historyData.length) {
+    list.innerHTML = `<div class="empty-state" style="padding:20px">Nenhum site processado.</div>`;
+    return;
+  }
+  list.innerHTML = historyData.map((site) => `
+    <div class="history-item${selectedDomain === site.domain ? " active" : ""}" data-domain="${escHtml(site.domain)}">
+      <img src="${faviconUrl(site.domain)}" alt="" onerror="this.style.opacity=0.3" />
+      <div><div class="history-domain">${escHtml(site.domain)}</div>
+        <div class="history-meta">${statusIcon(site)} ${formatDate(site.crawled_at)}</div></div>
+    </div>`).join("");
+  list.querySelectorAll(".history-item").forEach((el) => {
+    el.addEventListener("click", () => selectSite(el.dataset.domain));
+  });
+}
+
+async function selectSite(domain) {
+  selectedDomain = domain;
+  renderHistory();
+  const site = historyData.find((s) => s.domain === domain);
+  if (!site) return;
+  $("#url-input").value = site.url || `https://${domain}`;
+  renderResumo(site);
+  await loadArtifacts(domain);
+  activateAnaliseTab("resumo");
+}
+
+function renderResumo(site) {
+  const panel = $("#resumo-content");
+  const contacts = site.contacts || {};
+  const items = [];
+  if (contacts.whatsapp) items.push({ label: "WhatsApp", value: contacts.whatsapp, hi: true });
+  if (contacts.telefone || contacts.telefones?.[0]) items.push({ label: "Telefone", value: contacts.telefone || contacts.telefones[0] });
+  if (contacts.emails?.[0]) items.push({ label: "Email", value: contacts.emails[0] });
+  if (contacts.instagram) items.push({ label: "Instagram", value: contacts.instagram });
+  const seo = site.seo_issues || [];
+  let siteStatus = site.build_ok ? `<span class="badge-inline ok">✅ Build OK</span>`
+    : site.has_site ? `<span class="badge-inline warn">⚠️ Incompleto</span>`
+    : `<span class="badge-inline none">Não gerado</span>`;
+  panel.innerHTML = `
+    <div class="card"><div class="section-title">Negócio</div>
+      <strong>${escHtml(site.business_name || site.domain)}</strong>
+      <p style="color:var(--text-muted);margin-top:4px">${escHtml(site.business_type || "")}</p></div>
+    <div class="card"><div class="section-title">Páginas / Assets</div>
+      ${site.pages_found || 0} páginas · ${site.assets_count || 0} assets</div>
+    <div class="card"><div class="section-title">Contatos</div>
+      ${items.length ? items.map((c) => `<div class="contact-item"><span class="label">${c.label}</span><span class="value" style="${c.hi ? "color:var(--success)" : ""}">${escHtml(c.value)}</span></div>`).join("")
+        : `<span style="color:var(--text-muted)">Nenhum contato</span>`}</div>
+    <div class="card"><div class="section-title">Site gerado</div>${siteStatus}</div>
+    <div class="card"><div class="section-title">SEO (${site.seo_issues_count || seo.length} problemas)</div>
+      <ul class="seo-list">${seo.slice(0, 8).map((s) => `<li>• ${escHtml(s)}</li>`).join("") || "<li>Nenhum</li>"}</ul></div>`;
+}
+
+async function loadArtifacts(domain) {
+  const slug = domain.replace(/\./g, "_");
+  const [emailRes, promptRes, briefingRes, seoRes] = await Promise.all([
+    fetch(`/api/email/${slug}`),
+    fetch(`/api/prompt/${slug}`),
+    fetch(`/api/briefing/${slug}`),
+    fetch(`/api/site/${domain}/seo`),
+  ]);
+  renderEmail(await emailRes.json());
+  const prompt = await promptRes.json();
+  renderPrompt(prompt.content);
+  const briefing = await briefingRes.json();
+  renderBriefing(briefing.content);
+  const seo = await seoRes.json();
+  renderSeo(seo.seo_issues || []);
+}
+
+function renderEmail(email) {
+  const panel = $("#email-content");
+  if (!email?.body_text) {
+    panel.innerHTML = `<div class="empty-state">Nenhuma mensagem gerada.</div>`;
+    return;
+  }
+  panel.innerHTML = `<button class="btn btn-sm btn-secondary" id="btn-copy-email">📋 Copiar</button>
+    <div class="email-subject">${escHtml(email.subject || "Sem assunto")}</div>
+    <pre>${escHtml(email.body_text)}</pre>`;
+  $("#btn-copy-email")?.addEventListener("click", () => copyText(email.body_text));
+}
+
+function renderPrompt(content) {
+  const panel = $("#prompt-content");
+  if (!content) { panel.innerHTML = `<div class="empty-state">Nenhum prompt.</div>`; return; }
+  panel.innerHTML = `<button class="btn btn-sm btn-secondary" id="btn-copy-prompt">📋 Copiar</button><pre>${escHtml(content)}</pre>`;
+  $("#btn-copy-prompt")?.addEventListener("click", () => copyText(content));
+}
+
+function renderBriefing(content) {
+  const panel = $("#briefing-content");
+  if (!content) { panel.innerHTML = `<div class="empty-state">Nenhum briefing.</div>`; return; }
+  panel.innerHTML = `<div class="markdown">${markdownToHtml(content)}</div>`;
+}
+
+function renderSeo(issues) {
+  const panel = $("#seo-content");
+  panel.innerHTML = issues.length
+    ? `<ul class="seo-list">${issues.map((s) => `<li>• ${escHtml(s)}</li>`).join("")}</ul>`
+    : `<div class="empty-state">Nenhum problema SEO registrado.</div>`;
+}
+
+function markdownToHtml(md) {
+  let html = escHtml(md);
+  html = html.replace(/^### (.+)$/gm, "<h3>$1</h3>");
+  html = html.replace(/^## (.+)$/gm, "<h2>$1</h2>");
+  html = html.replace(/^# (.+)$/gm, "<h1>$1</h1>");
+  html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  html = html.replace(/`([^`]+)`/g, "<code>$1</code>");
+  html = html.replace(/^---$/gm, "<hr>");
+  html = html.replace(/^[-*] (.+)$/gm, "<li>$1</li>");
+  html = html.replace(/(<li>.*<\/li>\n?)+/g, (m) => `<ul>${m}</ul>`);
+  html = html.replace(/^(?!<[hul])([^\n<]+)$/gm, "<p>$1</p>");
+  return html;
+}
+
+function appendLog(line) {
+  const term = $("#log-terminal");
+  if (term.querySelector("span[style]")) term.innerHTML = "";
+  const div = document.createElement("div");
+  div.className = "log-line";
+  const upper = line.toUpperCase();
+  if (upper.includes("[ERROR]") || upper.includes("ERRO")) div.classList.add("error");
+  else if (upper.includes("[WARNING]") || upper.includes("⚠")) div.classList.add("warning");
+  else div.classList.add("info");
+  div.textContent = line;
+  term.appendChild(div);
+  term.scrollTop = term.scrollHeight;
+}
+
+function clearLogs() { $("#log-terminal").innerHTML = ""; }
+
+function setRunning(isRunning) {
+  running = isRunning;
+  const btn = $("#btn-run");
+  btn.disabled = isRunning;
+  btn.textContent = isRunning ? "⏹ Rodando..." : "▶ Rodar";
+  btn.classList.toggle("running", isRunning);
+  if (isRunning) setStatus("Executando...", "running");
+  else if (!prospectRunning) setStatus("Pronto", "");
+}
+
+function cancelRun() {
+  if (eventSource) { eventSource.close(); eventSource = null; }
+  setRunning(false);
+  showToast("Execução cancelada", "info");
+}
+
+async function runAgent() {
+  if (running) return;
+  const url = $("#url-input").value.trim();
+  if (!url) { showToast("Informe uma URL", "error"); return; }
+
+  setRunning(true);
+  clearLogs();
+  activateAnaliseTab("logs");
+
+  const maxPages = analiseMode === "fast" ? Math.min(parseInt(slider.value, 10), 10) : slider.value;
+  const sseUrl = `/run?url=${encodeURIComponent(url)}&max_pages=${maxPages}`;
+
+  if (eventSource) eventSource.close();
+  eventSource = new EventSource(sseUrl);
+
+  eventSource.onmessage = async (event) => {
+    const data = JSON.parse(event.data);
+    if (data.log) appendLog(data.log);
+    if (data.done) {
+      eventSource.close();
+      eventSource = null;
+      setRunning(false);
+      if (data.code === 0) {
+        setStatus("Concluído", "ok");
+        showToast("✅ Análise concluída");
+        await loadHistory();
+        const domain = extractDomain(url);
+        selectedDomain = domain;
+        const site = historyData.find((s) => s.domain === domain);
+        if (site) { renderResumo(site); await loadArtifacts(domain); activateAnaliseTab("email"); }
+      } else {
+        setStatus("Erro", "error");
+        showToast(`Erro (código ${data.code})`, "error");
+      }
+    }
+  };
+  eventSource.onerror = () => {
+    if (eventSource) eventSource.close();
+    eventSource = null;
+    setRunning(false);
+    setStatus("Erro", "error");
+    showToast("Conexão SSE perdida", "error");
+  };
+}
+
+window.copyText = async (text) => {
+  try { await navigator.clipboard.writeText(text); showToast("Copiado!"); }
+  catch { showToast("Erro ao copiar", "error"); }
+};
+
+$("#btn-run").addEventListener("click", runAgent);
+
+// --- Config ---
+async function loadConfig() {
+  try {
+    const res = await fetch("/api/config");
+    const cfg = await res.json();
+    $("#cfg-anthropic").textContent = cfg.anthropic_configured
+      ? (cfg.anthropic_preview || "••• configurada") : "Não configurada";
+    $("#cfg-maps").textContent = cfg.maps_configured
+      ? (cfg.maps_preview || "••• configurada") : "Não configurada (Playwright)";
+    const ui = cfg.ui || {};
+    $("#cfg-delay").value = ui.delay_entre_leads ?? 5;
+    $("#cfg-timeout").value = ui.timeout_lead ?? 180;
+    $("#cfg-pages").value = ui.paginas_por_lead ?? 8;
+    $("#cfg-cache").value = ui.cache_dias ?? cfg.cache_dias_default ?? 7;
+    $("#cfg-regioes").value = (ui.regioes_premium || []).join("\n");
+  } catch { showToast("Erro ao carregar config", "error"); }
+}
+
+$("#config-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const body = {
+    delay_entre_leads: parseInt($("#cfg-delay").value, 10),
+    timeout_lead: parseInt($("#cfg-timeout").value, 10),
+    paginas_por_lead: parseInt($("#cfg-pages").value, 10),
+    cache_dias: parseInt($("#cfg-cache").value, 10),
+    regioes_premium: $("#cfg-regioes").value.split("\n").map((s) => s.trim()).filter(Boolean),
+  };
+  try {
+    const res = await fetch("/api/config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (data) { showToast("Configurações salvas"); }
+  } catch { showToast("Erro ao salvar", "error"); }
+});
+
+// --- Keyboard ---
+document.addEventListener("keydown", (e) => {
+  if (e.target.matches("input, textarea, select") && !e.ctrlKey) {
+    if (e.key === "Escape") { cancelRun(); closeSidebar(); return; }
+    return;
+  }
+  if (e.ctrlKey && e.key === "Enter" && currentView === "analise") { runAgent(); return; }
+  if (e.key === "Escape") { cancelRun(); closeSidebar(); return; }
+  if (e.key === "d" || e.key === "D") setView("dashboard");
+  if (e.key === "p" || e.key === "P") setView("prospectar");
+  if (e.key === "l" || e.key === "L") setView("leads");
+  if (e.key === "a" || e.key === "A") setView("analise");
+});
+
+// --- Init ---
+loadDashboard();
+loadCrmLeads();
+checkProspectStatus();
+fetch("/api/system/status").then((r) => r.json()).then((s) => {
+  $("#version-tag").textContent = `v${s.version || "?"}`;
+}).catch(() => {});
+</script>
+</body>
+</html>
