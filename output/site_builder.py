@@ -55,6 +55,31 @@ async def _run_command(
 
     return await asyncio.to_thread(_sync)
 
+
+async def _setup_impeccable(project_dir: Path) -> bool:
+    """Instala skill Impeccable no projeto Next.js do cliente."""
+    project_dir.mkdir(parents=True, exist_ok=True)
+    logger.info("Instalando Impeccable em %s...", project_dir)
+    try:
+        code, _, err = await _run_command(
+            [
+                "npx", "--yes", "impeccable@latest", "install",
+                "--providers=claude", "--scope=project", "--no-hooks",
+            ],
+            cwd=project_dir,
+            timeout=180,
+        )
+        if code == 0:
+            logger.info("Impeccable instalado com sucesso")
+            return True
+        logger.warning("Impeccable install code=%s: %s", code, err[:400])
+    except FileNotFoundError:
+        logger.warning("npx não encontrado — Impeccable não instalado")
+    except Exception as exc:
+        logger.warning("Falha ao instalar Impeccable: %s", exc)
+    return False
+
+
 DEFAULT_TREATMENTS = [
     "invisalign",
     "ortodontia",
@@ -437,6 +462,27 @@ Crie os arquivos nesta ordem para eu poder testar incrementalmente:
 
 Crie todos os arquivos necessários para um projeto funcional completo.
 
+---
+
+## DESIGN COM IMPECCABLE
+
+Este diretório inclui a skill **Impeccable** (design language para IA).
+Siga estes princípios ao construir o site — evite o visual genérico de IA:
+
+- **Tipografia:** não use Inter, Arial ou system-ui como fonte principal. Escolha
+  uma fonte com personalidade adequada ao nicho (ex.: serif elegante para clínica
+  premium, geometric sans para tech).
+- **Cores:** não use gradientes roxo→azul genéricos. Tintas nas cores neutras
+  (nunca preto/cinza puro). Contraste legível em textos sobre fundos coloridos.
+- **Layout:** evite cards dentro de cards. Hierarquia clara, respiro generoso,
+  ritmo visual consistente.
+- **Motion:** animações sutis com easing natural (evite bounce/elastic).
+- **Conversão:** CTAs claros, prova social real, WhatsApp sempre acessível.
+
+Se a skill Impeccable estiver instalada em `.claude/skills/impeccable/`, consulte
+os comandos `/impeccable polish`, `/impeccable audit` e `/impeccable layout` como
+referência de qualidade antes de finalizar.
+
 OBRIGATÓRIO para o site funcionar: app/layout.tsx, app/page.tsx,
 app/tratamentos/page.tsx, app/tratamentos/[slug]/page.tsx (para cada slug),
 postcss.config.mjs e next.config. Sem app/page.tsx o servidor retorna 404.
@@ -797,6 +843,8 @@ async def build_site(
     logger.info("Prompt de reconstrução salvo em: %s", prompt_path)
 
     project_path = str(SITES_OUTPUT_DIR / domain_slug)
+
+    await _setup_impeccable(Path(project_path))
 
     if _check_claude_code_available():
         logger.info(

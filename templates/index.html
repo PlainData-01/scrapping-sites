@@ -3,39 +3,49 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Scraping Agent</title>
+  <title>Prospect Hub</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
     :root {
-      --bg: #0d0d0d;
-      --surface: #1a1a1a;
-      --surface-2: #222222;
-      --border: #2a2a2a;
-      --text: #e8e8e8;
-      --text-muted: #666;
-      --accent: #7c6af7;
-      --accent-hover: #9488f9;
-      --success: #22c55e;
+      --bg: #0a0a0f;
+      --bg-elevated: #12121a;
+      --surface: #16161f;
+      --surface-2: #1c1c28;
+      --border: rgba(255,255,255,0.08);
+      --border-strong: rgba(255,255,255,0.12);
+      --text: #f0f0f5;
+      --text-muted: #8b8b9e;
+      --accent: #6366f1;
+      --accent-hover: #818cf8;
+      --accent-soft: rgba(99,102,241,0.12);
+      --success: #10b981;
       --warning: #f59e0b;
       --error: #ef4444;
       --info: #38bdf8;
-      --radius: 8px;
-      --sidebar-w: 240px;
-      --header-h: 52px;
-      --transition: 150ms ease;
+      --radius: 10px;
+      --radius-lg: 14px;
+      --sidebar-w: 248px;
+      --header-h: 56px;
+      --transition: 180ms ease;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.25);
+      --shadow-md: 0 4px 24px rgba(0,0,0,0.35);
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: "Inter", system-ui, sans-serif;
+      font-family: "Plus Jakarta Sans", system-ui, sans-serif;
       background: var(--bg);
+      background-image:
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(99,102,241,0.15), transparent),
+        radial-gradient(ellipse 60% 40% at 100% 0%, rgba(16,185,129,0.06), transparent);
       color: var(--text);
       height: 100vh;
       overflow: hidden;
       display: flex;
       flex-direction: column;
       font-size: 14px;
+      -webkit-font-smoothing: antialiased;
     }
     button, input, select, textarea { font-family: inherit; }
     a { color: var(--accent); text-decoration: none; }
@@ -47,13 +57,23 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 20px;
+      padding: 0 24px;
       border-bottom: 1px solid var(--border);
-      background: var(--surface);
+      background: rgba(22,22,31,0.85);
+      backdrop-filter: blur(12px);
       flex-shrink: 0;
       z-index: 100;
     }
     .header-left { display: flex; align-items: center; gap: 14px; }
+    .brand-mark {
+      width: 32px; height: 32px; border-radius: 8px;
+      background: linear-gradient(135deg, var(--accent), #8b5cf6);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; box-shadow: var(--shadow-sm);
+    }
+    .brand-text { display: flex; flex-direction: column; gap: 1px; }
+    .app-title { font-size: 15px; font-weight: 700; letter-spacing: -0.03em; line-height: 1.2; }
+    .app-subtitle { font-size: 11px; color: var(--text-muted); font-weight: 500; }
     .menu-toggle {
       display: none;
       background: none;
@@ -65,11 +85,14 @@
       font-size: 16px;
       transition: border-color var(--transition);
     }
-    .menu-toggle:hover { border-color: var(--accent); }
-    .app-title { font-size: 15px; font-weight: 600; letter-spacing: -0.02em; }
+    .menu-toggle:hover { border-color: var(--accent); color: var(--accent); }
     .app-title span { color: var(--accent); }
     .header-right { display: flex; align-items: center; gap: 12px; }
-    .version-tag { font-size: 11px; color: var(--text-muted); }
+    .version-tag {
+      font-size: 11px; color: var(--text-muted);
+      padding: 4px 8px; border-radius: 6px;
+      background: var(--surface-2); border: 1px solid var(--border);
+    }
     .status-badge {
       font-size: 12px;
       padding: 4px 12px;
@@ -129,7 +152,11 @@
       margin-bottom: 2px;
     }
     .nav-item:hover { background: var(--surface-2); color: var(--text); }
-    .nav-item.active { background: rgba(124,106,247,0.15); color: var(--accent); }
+    .nav-item.active {
+      background: var(--accent-soft);
+      color: var(--accent);
+      box-shadow: inset 3px 0 0 var(--accent);
+    }
     .nav-icon { font-size: 16px; width: 22px; text-align: center; }
     .sidebar-footer {
       border-top: 1px solid var(--border);
@@ -163,13 +190,14 @@
     .view { display: none; flex: 1; overflow: hidden; flex-direction: column; }
     .view.active { display: flex; }
     .view-header {
-      padding: 16px 24px;
+      padding: 20px 28px;
       border-bottom: 1px solid var(--border);
       flex-shrink: 0;
+      background: rgba(22,22,31,0.5);
     }
-    .view-header h2 { font-size: 18px; font-weight: 600; }
+    .view-header h2 { font-size: 20px; font-weight: 700; letter-spacing: -0.03em; }
     .view-header p { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
-    .view-body { flex: 1; overflow-y: auto; padding: 20px 24px; }
+    .view-body { flex: 1; overflow-y: auto; padding: 24px 28px; }
 
     /* Cards & metrics */
     .metrics-grid {
@@ -181,11 +209,22 @@
     .metric-card {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 16px;
-      transition: border-color var(--transition);
+      border-radius: var(--radius-lg);
+      padding: 18px 20px;
+      transition: border-color var(--transition), transform var(--transition);
+      box-shadow: var(--shadow-sm);
+      position: relative;
+      overflow: hidden;
     }
-    .metric-card:hover { border-color: #3a3a3a; }
+    .metric-card::before {
+      content: "";
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--accent), #8b5cf6);
+      opacity: 0.7;
+    }
+    .metric-card:hover { border-color: var(--border-strong); transform: translateY(-1px); }
     .metric-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
     .metric-value { font-size: 28px; font-weight: 700; color: var(--text); }
     .metric-sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
@@ -440,9 +479,37 @@
     .descartados-list.open { display: flex; }
 
     /* CRM Table */
+    .crm-filter-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: flex-end;
+      margin-bottom: 12px;
+      padding: 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+    }
+    .crm-filter-bar .form-group { margin: 0; min-width: 140px; flex: 1; }
+    .crm-filter-bar .form-group.search-group { flex: 2; min-width: 200px; }
+    .crm-results-meta {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .crm-results-meta strong { color: var(--text); }
     .crm-toolbar { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
     .crm-toolbar .form-group { margin: 0; min-width: 160px; }
-    .crm-table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); }
+    .crm-table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-sm);
+      background: var(--surface);
+    }
     .crm-table { width: 100%; border-collapse: collapse; font-size: 13px; }
     .crm-table th {
       text-align: left; padding: 10px 14px; font-size: 11px;
@@ -462,6 +529,26 @@
       transition: color var(--transition);
     }
     .contato-cell:hover { color: var(--accent); border-bottom-color: var(--accent); }
+    .site-link {
+      color: var(--info);
+      font-size: 12px;
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      max-width: 180px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .site-link:hover { color: var(--accent-hover); text-decoration: underline; }
+    .badge-wa {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(16,185,129,0.15);
+      color: var(--success);
+      margin-left: 6px;
+    }
     .badge-terceirizado {
       font-size: 10px;
       padding: 2px 6px;
@@ -636,7 +723,11 @@
 <header class="app-header">
   <div class="header-left">
     <button class="menu-toggle" id="menu-toggle" aria-label="Menu">☰</button>
-    <h1 class="app-title"><span>🔍</span> Scraping Agent</h1>
+    <div class="brand-mark">⚡</div>
+    <div class="brand-text">
+      <h1 class="app-title">Prospect Hub</h1>
+      <span class="app-subtitle">Pipeline de prospecção</span>
+    </div>
   </div>
   <div class="header-right">
     <span class="version-tag" id="version-tag">v—</span>
@@ -757,11 +848,27 @@
     <section class="view" id="view-leads">
       <div class="view-header">
         <h2>Leads CRM</h2>
-        <p>Gerencie status, notas e follow-ups</p>
+        <p>Gerencie contatos, sites e follow-ups do pipeline</p>
       </div>
       <div class="view-body">
-        <div class="crm-toolbar">
-          <div class="form-group"><label for="crm-filter-status">Status</label>
+        <div class="crm-filter-bar">
+          <div class="form-group search-group">
+            <label for="crm-search">Buscar</label>
+            <input type="text" id="crm-search" placeholder="Nome, domínio, plataforma..." />
+          </div>
+          <div class="form-group">
+            <label for="crm-sort">Ordenar</label>
+            <select id="crm-sort">
+              <option value="whatsapp_first">WhatsApp primeiro</option>
+              <option value="score_desc">Score (maior)</option>
+              <option value="score_asc">Score (menor)</option>
+              <option value="nome_asc">Nome A–Z</option>
+              <option value="nome_desc">Nome Z–A</option>
+              <option value="status">Status CRM</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="crm-filter-status">Status</label>
             <select id="crm-filter-status">
               <option value="">Todos</option>
               <option value="pendente">Pendente</option>
@@ -772,15 +879,36 @@
               <option value="perdido">Perdido</option>
             </select>
           </div>
-          <div class="form-group" style="flex:2;min-width:200px"><label for="crm-search">Buscar</label>
-            <input type="text" id="crm-search" placeholder="Nome, domínio, plataforma..." />
+          <div class="form-group">
+            <label for="crm-filter-prioridade">Prioridade</label>
+            <select id="crm-filter-prioridade">
+              <option value="">Todas</option>
+              <option value="alta">Alta</option>
+              <option value="media">Média</option>
+              <option value="baixa">Baixa</option>
+            </select>
           </div>
-          <button class="btn btn-secondary" id="btn-crm-refresh">↻ Atualizar</button>
+          <div class="form-group">
+            <label for="crm-filter-plataforma">Plataforma</label>
+            <select id="crm-filter-plataforma">
+              <option value="">Todas</option>
+            </select>
+          </div>
+          <div class="form-group" style="flex:0;min-width:auto;align-self:flex-end">
+            <label class="toggle-row" style="margin:0;padding:8px 0">
+              <input type="checkbox" id="crm-filter-whatsapp" /> Só WhatsApp
+            </label>
+          </div>
+          <button class="btn btn-secondary" id="btn-crm-refresh" style="align-self:flex-end">↻ Atualizar</button>
         </div>
+        <div class="crm-results-meta" id="crm-results-meta"></div>
         <div class="crm-table-wrap">
           <table class="crm-table">
-            <thead><tr><th>Nome</th><th>Score</th><th>Plataforma</th><th>Contato</th><th>Status CRM</th><th>Ações</th></tr></thead>
-            <tbody id="crm-tbody"><tr><td colspan="6" class="empty-state">Carregando...</td></tr></tbody>
+            <thead><tr>
+              <th>Nome</th><th>Score</th><th>Plataforma</th>
+              <th>Contato</th><th>Site</th><th>Status CRM</th><th>Ações</th>
+            </tr></thead>
+            <tbody id="crm-tbody"><tr><td colspan="7" class="empty-state">Carregando...</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -913,10 +1041,70 @@ function formatContatoCell(lead) {
   } else if (digits.length === 10) {
     display = `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
   }
-  const isMobile = (digits.length >= 11 && digits[digits.length - 9] === "9")
-    || (digits.length >= 12 && digits[4] === "9");
+  const isMobile = isWhatsappCompatible(lead);
   const icon = isMobile ? "📱" : "☎️";
-  return `<span class="contato-cell" data-copy="${escHtml(digits || raw)}" title="${escHtml(raw)}">${icon} ${escHtml(display)}</span>`;
+  const waBadge = isMobile ? '<span class="badge-wa">WA</span>' : "";
+  return `<span class="contato-cell" data-copy="${escHtml(digits || raw)}" title="${escHtml(raw)}">${icon} ${escHtml(display)}${waBadge}</span>`;
+}
+
+function formatSiteCell(lead) {
+  const url = lead.website || lead.url || "";
+  if (!url) return `<span style="color:var(--text-muted)">—</span>`;
+  const href = url.startsWith("http") ? url : `https://${url}`;
+  const display = extractDomain(url);
+  return `<a class="site-link" href="${escHtml(href)}" target="_blank" rel="noopener noreferrer" title="${escHtml(url)}">${escHtml(display)} ↗</a>`;
+}
+
+function isWhatsappCompatible(lead) {
+  const raw = lead.whatsapp || lead.telefone || "";
+  const digits = raw.replace(/\D/g, "");
+  if (digits.length >= 13 && digits.startsWith("55")) return digits[4] === "9";
+  if (digits.length === 11) return digits[2] === "9";
+  return false;
+}
+
+function sortCrmLeads(rows) {
+  const sort = $("#crm-sort")?.value || "whatsapp_first";
+  const sorted = [...rows];
+  switch (sort) {
+    case "score_desc":
+      sorted.sort((a, b) => (b.score || 0) - (a.score || 0));
+      break;
+    case "score_asc":
+      sorted.sort((a, b) => (a.score || 0) - (b.score || 0));
+      break;
+    case "nome_asc":
+      sorted.sort((a, b) => (a.nome || "").localeCompare(b.nome || "", "pt"));
+      break;
+    case "nome_desc":
+      sorted.sort((a, b) => (b.nome || "").localeCompare(a.nome || "", "pt"));
+      break;
+    case "status":
+      sorted.sort((a, b) => (a.crm_status || "pendente").localeCompare(b.crm_status || "pendente", "pt"));
+      break;
+    case "whatsapp_first":
+    default:
+      sorted.sort((a, b) => {
+        const waDiff = (isWhatsappCompatible(a) ? 0 : 1) - (isWhatsappCompatible(b) ? 0 : 1);
+        if (waDiff !== 0) return waDiff;
+        return (b.score || 0) - (a.score || 0);
+      });
+      break;
+  }
+  return sorted;
+}
+
+function populatePlataformaFilter() {
+  const sel = $("#crm-filter-plataforma");
+  if (!sel) return;
+  const current = sel.value;
+  const plataformas = [...new Set(
+    crmLeads.map((l) => l.plataforma_detectada).filter(Boolean)
+  )].sort((a, b) => a.localeCompare(b, "pt"));
+  sel.innerHTML = `<option value="">Todas</option>${plataformas.map((p) =>
+    `<option value="${escHtml(p)}">${escHtml(p)}</option>`
+  ).join("")}`;
+  if (current && plataformas.includes(current)) sel.value = current;
 }
 
 async function copyContato(text) {
@@ -1397,6 +1585,7 @@ async function loadCrmLeads() {
   try {
     const res = await fetch("/api/leads");
     crmLeads = await res.json();
+    populatePlataformaFilter();
     renderSidebarLeads(crmLeads);
     renderCrmTable();
   } catch { showToast("Erro ao carregar leads", "error"); }
@@ -1404,18 +1593,32 @@ async function loadCrmLeads() {
 
 function renderCrmTable() {
   const statusFilter = $("#crm-filter-status").value;
+  const prioridadeFilter = $("#crm-filter-prioridade")?.value || "";
+  const plataformaFilter = $("#crm-filter-plataforma")?.value || "";
+  const whatsappOnly = $("#crm-filter-whatsapp")?.checked || false;
   const search = $("#crm-search").value.trim().toLowerCase();
   let rows = crmLeads;
   if (statusFilter) rows = rows.filter((l) => (l.crm_status || "pendente") === statusFilter);
+  if (prioridadeFilter) rows = rows.filter((l) => (l.prioridade || "") === prioridadeFilter);
+  if (plataformaFilter) rows = rows.filter((l) => l.plataforma_detectada === plataformaFilter);
+  if (whatsappOnly) rows = rows.filter(isWhatsappCompatible);
   if (search) {
     rows = rows.filter((l) => {
       const dom = l.domain || extractDomain(l.website || "");
-      return [l.nome, dom, l.plataforma_detectada, l.problema_principal].join(" ").toLowerCase().includes(search);
+      return [l.nome, dom, l.plataforma_detectada, l.problema_principal, l.website].join(" ").toLowerCase().includes(search);
     });
+  }
+  rows = sortCrmLeads(rows);
+  const meta = $("#crm-results-meta");
+  if (meta) {
+    const total = crmLeads.length;
+    meta.innerHTML = total === rows.length
+      ? `<strong>${rows.length}</strong> lead${rows.length !== 1 ? "s" : ""}`
+      : `<strong>${rows.length}</strong> de ${total} leads`;
   }
   const tbody = $("#crm-tbody");
   if (!rows.length) {
-    tbody.innerHTML = `<tr><td colspan="6" class="empty-state">Nenhum lead encontrado.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" class="empty-state">Nenhum lead encontrado.</td></tr>`;
     return;
   }
   tbody.innerHTML = rows.map((lead) => {
@@ -1429,6 +1632,7 @@ function renderCrmTable() {
       <td>${lead.score ?? "—"}</td>
       <td>${escHtml(lead.plataforma_detectada || "—")}</td>
       <td>${formatContatoCell(lead)}</td>
+      <td>${formatSiteCell(lead)}</td>
       <td><span class="crm-badge ${st}">${st}</span></td>
       <td>
         <button class="btn btn-sm btn-secondary" data-crm-expand="${escHtml(dom)}">▼</button>
@@ -1438,7 +1642,7 @@ function renderCrmTable() {
       </td>
     </tr>
     <tr class="crm-expand-row" data-expand-for="${escHtml(dom)}" style="display:${expanded ? "table-row" : "none"}">
-      <td colspan="6"><div class="crm-expand open" id="expand-${domainSlug(dom)}"></div></td>
+      <td colspan="7"><div class="crm-expand open" id="expand-${domainSlug(dom)}"></div></td>
     </tr>`;
   }).join("");
 
@@ -1521,6 +1725,10 @@ async function loadCrmExpand(domain) {
 }
 
 $("#crm-filter-status").addEventListener("change", renderCrmTable);
+$("#crm-filter-prioridade")?.addEventListener("change", renderCrmTable);
+$("#crm-filter-plataforma")?.addEventListener("change", renderCrmTable);
+$("#crm-filter-whatsapp")?.addEventListener("change", renderCrmTable);
+$("#crm-sort")?.addEventListener("change", renderCrmTable);
 $("#crm-search").addEventListener("input", renderCrmTable);
 $("#btn-crm-refresh").addEventListener("click", loadCrmLeads);
 

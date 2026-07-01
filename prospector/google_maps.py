@@ -72,6 +72,35 @@ def _limpar_telefone(tel: str) -> str:
     return digits
 
 
+def _telefone_compativel_whatsapp(tel: str) -> bool:
+    """Celular BR válido para WhatsApp (DDD + 9 dígitos)."""
+    digits = _limpar_telefone(tel)
+    if not digits:
+        return False
+    if len(digits) == 13 and digits.startswith("55"):
+        return digits[4] == "9"
+    if len(digits) == 11:
+        return digits[2] == "9"
+    return False
+
+
+def _telefone_valido(tel: str) -> bool:
+    """Telefone brasileiro com formato mínimo válido."""
+    digits = _limpar_telefone(tel)
+    return len(digits) in (12, 13)
+
+
+def _lead_prioridade_ordenacao(lead: Lead) -> tuple[int, int]:
+    """Ordenação: WhatsApp compatível primeiro, depois score."""
+    if _telefone_compativel_whatsapp(lead.telefone):
+        tel_rank = 0
+    elif _telefone_valido(lead.telefone):
+        tel_rank = 1
+    else:
+        tel_rank = 2
+    return (tel_rank, -lead.score)
+
+
 def _nome_valido(nome: str) -> bool:
     if not nome or nome in NOMES_INVALIDOS:
         return False
@@ -279,9 +308,29 @@ async def qualificar_lead(lead: Lead) -> Lead:
         }
 
     tel_limpo = _limpar_telefone(lead.telefone)
-    if tel_limpo and len(tel_limpo) >= 5 and tel_limpo[4] == "9":
-        score += 15
-        detalhes["whatsapp"] = {"pontos": 15, "motivo": "WhatsApp disponível"}
+    if _telefone_compativel_whatsapp(lead.telefone):
+        score += 25
+        detalhes["whatsapp"] = {
+            "pontos": 25,
+            "motivo": "WhatsApp compatível (celular BR)",
+        }
+    elif _telefone_valido(lead.telefone):
+        score += 8
+        detalhes["whatsapp"] = {
+            "pontos": 8,
+            "motivo": "Telefone fixo válido",
+        }
+    elif tel_limpo:
+        detalhes["whatsapp"] = {
+            "pontos": 0,
+            "motivo": "Telefone com formato incomum",
+        }
+    else:
+        detalhes["whatsapp"] = {
+            "pontos": -5,
+            "motivo": "Sem telefone no Maps",
+        }
+        score = max(0, score - 5)
 
     REGIOES_PREMIUM = [
         "asa sul", "asa norte", "lago sul", "lago norte",
@@ -458,7 +507,7 @@ async def _qualificar_e_filtrar(
     )
 
     resultado = aprovados if apenas_qualificados else list(leads)
-    resultado.sort(key=lambda l: l.score, reverse=True)
+    resultado.sort(key=_lead_prioridade_ordenacao)
     return resultado
 
 
