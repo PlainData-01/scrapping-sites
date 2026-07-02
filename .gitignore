@@ -1,5 +1,6 @@
 # Ambiente
 .env
+.env.local
 .venv/
 venv/
 env/
@@ -10,17 +11,30 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
-# Saídas geradas pelo agente (manter módulos Python em output/)
+# Saídas geradas (manter apenas módulos .py em output/)
 output/briefings/
 output/sites/
+output/diagnoses/
+output/exports/
 output/assets/
 output/screenshots/
+output/leads/
 output/*.html
 output/*.pdf
 output/proposta-*
-output/leads/
+
+# Banco local
 storage/*.db
+
+# Logs e temporários
+*.log
+logs/
+*.tmp
+**/*.tmp
 
 # IDE / OS
 .idea/
@@ -31,3 +45,6 @@ Thumbs.db
 
 # Node (projetos Next.js gerados localmente)
 node_modules/
+
+# Skills locais do Cursor/Claude (não fazem parte do Prospect Hub)
+.claude/

@@ -1,0 +1,67 @@
+{
+  "hero": {
+    "headlines": {
+      "default": "Beleza e autoestima em {city} — {name}",
+      "premium_transformacao": "Transformação estética com padrão premium — {name}",
+      "humanizada": "Cuidado estético acolhedor para você em {city}",
+      "procedimento_rapido": "Harmonização facial — agende sua avaliação hoje"
+    },
+    "subheadlines": {
+      "default": "Procedimentos personalizados com segurança e resultado natural.",
+      "premium_transformacao": "Protocolos exclusivos, avaliação detalhada e acompanhamento próximo em cada etapa.",
+      "humanizada": "Na {name}, cada paciente é ouvida com calma antes de qualquer procedimento.",
+      "procedimento_rapido": "Agendamento rápido pelo WhatsApp. Avaliação objetiva e plano claro para {pain}."
+    }
+  },
+  "cta": {
+    "primary": "Agendar avaliação",
+    "secondary": "Tirar dúvidas",
+    "premium_transformacao": "Solicitar consulta premium",
+    "humanizada": "Conversar com a equipe",
+    "procedimento_rapido": "Agendar agora pelo WhatsApp"
+  },
+  "services_by_variation": {
+    "premium_transformacao": [
+      {"title": "Harmonização facial", "description": "Equilíbrio natural com técnicas avançadas e planejamento individual."},
+      {"title": "Bioestimuladores", "description": "Firmeza e qualidade da pele com resultados progressivos."},
+      {"title": "Skinbooster", "description": "Hidratação profunda e viço para pele cansada."},
+      {"title": "Protocolos exclusivos", "description": "Combinações personalizadas para resultado sofisticado."}
+    ],
+    "humanizada": [
+      {"title": "Primeira consulta", "description": "Escuta ativa e explicação clara de cada opção de tratamento."},
+      {"title": "Estética facial", "description": "Procedimentos com foco em naturalidade e conforto."},
+      {"title": "Cuidados da pele", "description": "Rotinas e tratamentos para manter o resultado."},
+      {"title": "Acompanhamento", "description": "Suporte antes, durante e depois do procedimento."}
+    ],
+    "procedimento_rapido": [
+      {"title": "Botox", "description": "Suavização de linhas com aplicação precisa."},
+      {"title": "Preenchimento", "description": "Contorno e volume com indicação segura."},
+      {"title": "Avaliação express", "description": "Horários flexíveis para quem tem agenda corrida."},
+      {"title": "Retorno incluso", "description": "Checagem pós-procedimento para sua tranquilidade."}
+    ]
+  },
+  "services": [
+    {"title": "Harmonização", "description": "Equilíbrio facial com naturalidade."},
+    {"title": "Preenchimento", "description": "Volume e contorno com segurança."},
+    {"title": "Toxina botulínica", "description": "Suavização de linhas de expressão."},
+    {"title": "Skincare", "description": "Tratamentos para qualidade da pele."}
+  ],
+  "trust_items": [
+    "Profissionais especializados",
+    "Ambiente higienizado e acolhedor",
+    "Avaliações positivas no Google",
+    "Atendimento personalizado"
+  ],
+  "differentials": [
+    {"title": "Naturalidade", "text": "Resultados que valorizam sua identidade, sem exageros."},
+    {"title": "Segurança", "text": "Produtos regulamentados e protocolos claros."},
+    {"title": "Transparência", "text": "Orçamento e expectativas alinhados antes do procedimento."},
+    {"title": "Localização", "text": "Atendimento em {city} com fácil acesso."}
+  ],
+  "journey_steps": [
+    {"title": "1. Contato", "text": "Fale pelo WhatsApp e conte sua expectativa."},
+    {"title": "2. Avaliação", "text": "Análise facial e indicação do melhor protocolo."},
+    {"title": "3. Procedimento", "text": "Execução com conforto e orientação completa."},
+    {"title": "4. Acompanhamento", "text": "Retorno para garantir seu resultado."}
+  ]
+}

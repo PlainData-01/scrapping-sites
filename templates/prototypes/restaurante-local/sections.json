@@ -1,0 +1,8 @@
+{
+  "orders": {
+    "default": ["hero", "services", "trust", "differentials", "cta", "contact"],
+    "experiencia_gastronomica": ["hero", "trust", "services", "differentials", "cta"],
+    "delivery_cardapio": ["hero", "services", "cta", "contact"],
+    "reservas_eventos": ["hero", "journey", "services", "cta", "contact"]
+  }
+}

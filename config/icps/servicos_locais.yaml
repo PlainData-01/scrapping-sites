@@ -1,0 +1,50 @@
+id: servicos_locais
+name: "Prestadores de serviço local"
+description: "Empresas locais de serviço que dependem de orçamento, ligação, WhatsApp ou agendamento."
+
+target_keywords:
+  - "empresa de limpeza"
+  - "dedetização"
+  - "marcenaria"
+  - "ar condicionado"
+  - "eletricista"
+  - "encanador"
+  - "reforma"
+  - "assistência técnica"
+
+locations:
+  - "Brasília"
+  - "Águas Claras"
+  - "Taguatinga"
+  - "Guará"
+  - "Asa Sul"
+  - "Asa Norte"
+
+avoid_keywords:
+  - "curso"
+  - "vaga"
+  - "concurso"
+  - "franquia nacional"
+
+positive_signals:
+  website_exists: 10
+  no_website: 5
+  old_visual_site: 25
+  weak_mobile_cta: 25
+  no_visible_whatsapp: 20
+  whatsapp_found: 10
+  rating_above_4_5: 10
+  reviews_above_30: 12
+  no_service_pages: 15
+  no_proof_sections: 15
+
+negative_signals:
+  low_rating: -15
+  no_phone: -20
+  very_modern_site: -25
+  likely_big_brand: -20
+
+offer:
+  type: "Landing page para pedidos de orçamento pelo WhatsApp"
+  promise: "transformar buscas locais em pedidos de orçamento"
+  recommended_prototype: "servico-local"

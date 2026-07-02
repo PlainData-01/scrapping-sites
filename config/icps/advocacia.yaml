@@ -1,0 +1,52 @@
+id: advocacia
+name: "Advocacia local"
+description: "Escritórios de advocacia locais que precisam transmitir autoridade, confiança e captar contatos qualificados."
+
+target_keywords:
+  - "advogado"
+  - "escritório de advocacia"
+  - "advogado previdenciário"
+  - "advogado trabalhista"
+  - "advogado empresarial"
+  - "advogado família"
+
+locations:
+  - "Brasília"
+  - "Asa Sul"
+  - "Asa Norte"
+  - "Águas Claras"
+  - "Lago Sul"
+  - "Noroeste"
+  - "Sudoeste"
+
+avoid_keywords:
+  - "defensoria"
+  - "concurso"
+  - "faculdade"
+  - "curso"
+  - "grande banca nacional"
+
+positive_signals:
+  website_exists: 10
+  wordpress_site: 15
+  old_visual_site: 25
+  weak_mobile_cta: 20
+  no_visible_whatsapp: 15
+  whatsapp_found: 10
+  rating_above_4_5: 10
+  reviews_above_20: 10
+  no_service_pages: 20
+  no_authority_sections: 15
+  premium_neighborhood: 10
+
+negative_signals:
+  no_website: -10
+  low_rating: -15
+  no_phone: -20
+  very_modern_site: -25
+  likely_big_brand: -20
+
+offer:
+  type: "Site institucional com páginas de serviços jurídicos"
+  promise: "gerar mais confiança e contatos qualificados"
+  recommended_prototype: "advocacia-local"

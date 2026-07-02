@@ -1,0 +1,52 @@
+{
+  "hero": {
+    "headlines": {
+      "default": "Sorrisos saudáveis em {city} — {name}",
+      "premium_minimal": "Odontologia com excelência em {city}",
+      "familiar": "Cuidado odontológico para toda a família em {city}",
+      "implantes": "Implantes e estética dental — {name}",
+      "ortodontia": "Ortodontia moderna para todas as idades",
+      "local_acessivel": "Dentista em {city} — agende pelo WhatsApp"
+    },
+    "subheadlines": {
+      "default": "Agende sua avaliação pelo WhatsApp. Atendimento humanizado.",
+      "premium_minimal": "Atendimento personalizado com foco em estética, confiança e conforto.",
+      "familiar": "Da primeira consulta ao acompanhamento, {name} cuida de toda a família com carinho.",
+      "implantes": "Recupere a confiança no seu sorriso. Avaliação personalizada sem compromisso.",
+      "ortodontia": "Alinhadores e aparelhos com acompanhamento próximo. Agende sua avaliação.",
+      "local_acessivel": "Atendimento direto, orçamento claro e fácil contato pelo WhatsApp."
+    }
+  },
+  "cta": {
+    "primary": "Agendar pelo WhatsApp",
+    "secondary": "Falar com a equipe",
+    "implantes": "Solicitar avaliação",
+    "ortodontia": "Agendar avaliação ortodôntica"
+  },
+  "services": [
+    {"title": "Clareamento", "description": "Sorriso mais branco com segurança e resultados naturais."},
+    {"title": "Implantes", "description": "Reposição de dentes com planejamento digital."},
+    {"title": "Ortodontia", "description": "Alinhadores e aparelhos para todas as idades."},
+    {"title": "Estética dental", "description": "Harmonização e lentes de contato dental."},
+    {"title": "Prevenção", "description": "Limpeza, check-up e plano de cuidado contínuo."},
+    {"title": "Odontopediatria", "description": "Cuidado especial para crianças e adolescentes."}
+  ],
+  "trust_items": [
+    "Equipe especializada e atualizada",
+    "Ambiente acolhedor e moderno",
+    "Boa reputação no Google",
+    "Atendimento humanizado"
+  ],
+  "differentials": [
+    {"title": "Tecnologia", "text": "Equipamentos digitais para diagnóstico preciso."},
+    {"title": "Conforto", "text": "Procedimentos com foco no bem-estar do paciente."},
+    {"title": "Transparência", "text": "Orçamento claro antes de iniciar o tratamento."},
+    {"title": "Localização", "text": "Fácil acesso em {city}."}
+  ],
+  "journey_steps": [
+    {"title": "1. WhatsApp", "text": "Entre em contato e conte o que você precisa."},
+    {"title": "2. Avaliação", "text": "Agendamos uma consulta para entender seu caso."},
+    {"title": "3. Plano", "text": "Apresentamos opções claras de tratamento."},
+    {"title": "4. Acompanhamento", "text": "Seguimos com você em cada etapa."}
+  ]
+}

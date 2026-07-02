@@ -34,11 +34,12 @@ DEFAULT_OUTPUT_CSV = str(OUTPUT_DIR / "leads" / "prospeccao.csv")
 PROGRESS_FILE = OUTPUT_DIR / "leads" / "progresso.json"
 
 CSV_FIELDNAMES = [
-    "prioridade", "score", "nome", "plataforma_detectada",
-    "avaliacao", "total_avaliacoes", "telefone", "website",
-    "endereco", "google_maps_url", "qualificado",
-    "motivo_descarte", "problema_principal",
-    "mensagem_whatsapp", "whatsapp_link", "status",
+    "prioridade", "score", "opportunity_score", "nome", "plataforma_detectada",
+    "avaliacao", "total_avaliacoes", "telefone", "whatsapp", "website",
+    "endereco", "google_maps", "qualificado", "motivo_descarte",
+    "problema_principal", "main_pain", "commercial_angle", "suggested_offer",
+    "icp_id", "score_reasons", "mensagem_whatsapp", "whatsapp_link",
+    "status", "crm_status", "created_at", "updated_at",
 ]
 
 
@@ -187,13 +188,14 @@ def prospeccao_em_andamento() -> bool:
 async def _processar_lead_com_timeout(
     lead: Lead,
     timeout_segundos: int = 180,
+    max_pages: int = 8,
 ) -> dict[str, Any]:
     """Processa um lead com timeout máximo. Se travar, descarta e continua."""
     try:
         site_data = await asyncio.wait_for(
             _run_agent_safe(
                 url=lead.website,
-                max_pages=8,
+                max_pages=max_pages,
                 skip_cache=False,
                 interactive=False,
                 prospect_mode=True,
@@ -221,7 +223,11 @@ async def _processar_lead_com_timeout(
         return {"sucesso": False, "erro": str(e)}
 
 
-def _montar_resultado_lead(lead: Lead, processamento: dict[str, Any]) -> dict[str, Any]:
+def _montar_resultado_lead(
+    lead: Lead,
+    processamento: dict[str, Any],
+    icp_id: str = "odontologia",
+) -> dict[str, Any]:
     """Monta dict de resultado a partir do lead e do processamento."""
     base = {
         "nome": lead.nome,
@@ -238,6 +244,8 @@ def _montar_resultado_lead(lead: Lead, processamento: dict[str, Any]) -> dict[st
         "motivo_descarte": lead.motivo_descarte,
         "score_motivo": _principal_motivo_score(lead),
         "site_terceirizado": lead.site_terceirizado,
+        "icp_id": icp_id,
+        "categoria": lead.categoria,
     }
 
     if not processamento.get("sucesso"):
@@ -251,31 +259,70 @@ def _montar_resultado_lead(lead: Lead, processamento: dict[str, Any]) -> dict[st
     analysis = dict(site_data.analysis or {})
     if lead.plataforma_detectada and not analysis.get("platform"):
         analysis["platform"] = lead.plataforma_detectada
-    mensagem = gerar_mensagem_whatsapp(
-        site_data=site_data,
-        analysis=analysis,
-        tem_prototipo=False,
-        telefone_fallback=lead.telefone,
-        plataforma_detectada=lead.plataforma_detectada,
-        site_terceirizado=lead.site_terceirizado,
+
+    from parser.commercial_analysis import analyze_site_commercial
+    from prospector.icp_loader import load_icp
+    from prospector.message_generator import gerar_pacote_mensagens
+    from prospector.scoring import compute_score
+
+    icp = load_icp(icp_id)
+    commercial = analyze_site_commercial(site_data)
+    score_result = compute_score(
+        icp,
+        plataforma=lead.plataforma_detectada,
+        avaliacao=lead.avaliacao,
+        total_avaliacoes=lead.total_avaliacoes,
+        has_website=bool(lead.website),
+        has_whatsapp=commercial.has_visible_whatsapp,
+        has_visible_cta=commercial.has_clear_cta,
+        has_contact_form=commercial.has_contact_form,
+        has_meta_pixel=commercial.has_meta_pixel,
+        has_gtm=commercial.has_google_tag_manager,
+        has_service_pages=commercial.has_service_pages,
+        has_social_proof=commercial.has_social_proof,
+        old_visual_site=commercial.old_visual_site,
+        weak_mobile_cta=commercial.weak_mobile_cta,
+        endereco=lead.endereco,
+        has_phone=bool(_limpar_telefone(lead.telefone)),
+        commercial_issues=commercial.commercial_issues,
     )
 
-    whatsapp = lead.telefone or mensagem["whatsapp_numero"]
-    whatsapp_link = mensagem["whatsapp_link"]
+    lead.score = score_result.opportunity_score
+    lead.prioridade = (
+        "alta" if lead.score >= 65 else "media" if lead.score >= 35 else "baixa"
+    )
+
+    lead_dict = {
+        **base,
+        "score": score_result.opportunity_score,
+        "opportunity_score": score_result.opportunity_score,
+        "prioridade": lead.prioridade,
+        "score_reasons": score_result.score_reasons,
+        "main_pain": score_result.main_pain,
+        "commercial_angle": score_result.commercial_angle,
+        "suggested_offer": score_result.suggested_offer,
+        "commercial_analysis": commercial.to_dict(),
+        "problema_principal": score_result.main_pain,
+        "score_motivo": score_result.score_reasons[0] if score_result.score_reasons else _principal_motivo_score(lead),
+    }
+
+    messages = gerar_pacote_mensagens(lead_dict, site_data=site_data, analysis=analysis)
+    lead_dict["messages_pack"] = messages
+    lead_dict["mensagem_whatsapp"] = messages["mensagem_curta"]
+    lead_dict["mensagem_completa"] = messages["mensagem_consultiva"]
+
+    whatsapp = lead.telefone or messages.get("whatsapp_numero", "")
+    whatsapp_link = messages.get("whatsapp_link_curta", "")
     if not whatsapp_link and whatsapp:
         from prospector.whatsapp_writer import _build_whatsapp_link
-        whatsapp_link = _build_whatsapp_link(whatsapp, mensagem["mensagem_curta"])
+        whatsapp_link = _build_whatsapp_link(whatsapp, messages["mensagem_curta"])
 
     return {
-        **base,
+        **lead_dict,
         "whatsapp": whatsapp,
         "problemas_seo": len(site_data.seo_issues or []),
-        "problema_principal": mensagem["problema_detectado"],
-        "mensagem_whatsapp": mensagem["mensagem_curta"],
-        "mensagem_completa": mensagem["mensagem_completa"],
         "whatsapp_link": whatsapp_link,
-        "mensagem_followup": mensagem.get("mensagem_followup", ""),
-        "whatsapp_followup_link": mensagem.get("whatsapp_followup_link", ""),
+        "mensagem_followup": messages.get("followup_1", ""),
         "status": "pronto",
     }
 
@@ -295,11 +342,30 @@ async def executar_prospeccao(
     query: str = "clínica odontológica",
     cidade: str = "Brasília DF",
     max_leads: int = 20,
-    delay_entre_leads: int = 5,
+    delay_entre_leads: int | None = None,
     output_csv: str = DEFAULT_OUTPUT_CSV,
+    icp_id: str | None = None,
+    max_pages: int | None = None,
+    timeout_lead: int | None = None,
 ) -> None:
     """Executa prospecção completa, persistindo progresso a cada etapa."""
+    from prospector.icp_loader import load_icp
+    from prospector.leads_crm import ler_ui_config
+
+    ui = ler_ui_config()
+    icp = load_icp(icp_id or ui.get("icp_id"))
+    if not icp_id:
+        icp_id = icp.id
+    if query == "clínica odontológica" and icp.default_query:
+        query = icp.default_query
+    if cidade == "Brasília DF" and icp.default_location:
+        cidade = f"{icp.default_location} DF"
+    delay_entre_leads = delay_entre_leads if delay_entre_leads is not None else int(ui.get("delay_entre_leads", 5))
+    max_pages = max_pages or int(ui.get("paginas_por_lead", 8))
+    timeout_lead = timeout_lead or int(ui.get("timeout_lead", 180))
+
     progresso = ProgressoProspeccao.iniciar(query, cidade, max_leads)
+    progresso.estado["icp_id"] = icp_id
 
     try:
         logger.info(
@@ -382,10 +448,12 @@ async def executar_prospeccao(
                     )
                     continue
 
-                processamento = await _processar_lead_com_timeout(lead)
+                processamento = await _processar_lead_com_timeout(
+                    lead, timeout_segundos=timeout_lead, max_pages=max_pages,
+                )
 
                 # a) Montar resultado — b) Salvar IMEDIATAMENTE (antes de qualquer outra op)
-                resultado = _montar_resultado_lead(lead, processamento)
+                resultado = _montar_resultado_lead(lead, processamento, icp_id=icp_id)
                 if processamento.get("sucesso"):
                     site_data = processamento["site_data"]
                     ajustar_score_pos_scraping(
@@ -576,9 +644,18 @@ def _salvar_resultados_csv(resultados: list[dict[str, Any]], path: str) -> None:
     out.parent.mkdir(parents=True, exist_ok=True)
     if not resultados:
         return
+    rows = []
+    for r in resultados:
+        row = dict(r)
+        for key in ("score_reasons", "commercial_analysis", "messages_pack"):
+            if isinstance(row.get(key), (list, dict)):
+                row[key] = json.dumps(row[key], ensure_ascii=False)
+        row.setdefault("opportunity_score", row.get("score", 0))
+        row.setdefault("crm_status", "new")
+        rows.append(row)
     with out.open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(
             f, fieldnames=CSV_FIELDNAMES, extrasaction="ignore",
         )
         writer.writeheader()
-        writer.writerows(resultados)
+        writer.writerows(rows)

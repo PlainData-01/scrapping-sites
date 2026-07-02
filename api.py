@@ -10,13 +10,13 @@ import sys
 from pathlib import Path
 
 from fastapi import FastAPI, Query
-from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
 ROOT = Path(__file__).resolve().parent
 logger = logging.getLogger(__name__)
 
-AGENT_VERSION = "2.0"
+AGENT_VERSION = "3.2"
 
 app = FastAPI(title="Scraping Agent", docs_url="/docs")
 
@@ -33,7 +33,9 @@ def _on_prospect_task_done(task: asyncio.Task) -> None:
         logger.error("Erro na prospecção (task): %s", exc)
 
 
-async def _run_prospect_task(query: str, cidade: str, max_leads: int) -> None:
+async def _run_prospect_task(
+    query: str, cidade: str, max_leads: int, icp_id: str | None = None,
+) -> None:
     from prospector.pipeline import executar_prospeccao
 
     try:
@@ -41,6 +43,7 @@ async def _run_prospect_task(query: str, cidade: str, max_leads: int) -> None:
             query=query,
             cidade=cidade,
             max_leads=max_leads,
+            icp_id=icp_id,
         )
     except asyncio.CancelledError:
         logger.warning("Task de prospecção cancelada — servidor continua rodando")
@@ -48,11 +51,13 @@ async def _run_prospect_task(query: str, cidade: str, max_leads: int) -> None:
         logger.exception("Erro na prospecção: %s", exc)
 
 
-def _iniciar_task_prospeccao(query: str, cidade: str, max_leads: int) -> asyncio.Task:
+def _iniciar_task_prospeccao(
+    query: str, cidade: str, max_leads: int, icp_id: str | None = None,
+) -> asyncio.Task:
     """Cria task isolada do ciclo de vida do request HTTP."""
     global _prospect_task
     task = asyncio.create_task(
-        _run_prospect_task(query, cidade, max_leads),
+        _run_prospect_task(query, cidade, max_leads, icp_id),
         name="prospect_pipeline",
     )
     task.add_done_callback(_on_prospect_task_done)
@@ -78,6 +83,24 @@ class ConfigUpdate(BaseModel):
     paginas_por_lead: int | None = None
     cache_dias: int | None = None
     regioes_premium: list[str] | None = None
+    icp_id: str | None = None
+
+
+class GenerateRequest(BaseModel):
+    mode: str | None = None
+    icp_id: str | None = None
+    template_id: str | None = None
+    variation: str | None = None
+
+
+class ActivityLogRequest(BaseModel):
+    acao: str = ""
+    nota: str = ""
+    canal: str = "whatsapp"
+    resultado: str = ""
+    type: str = ""
+    title: str = ""
+    description: str = ""
 
 
 def _carregar_leads_csv() -> list[dict]:
@@ -209,6 +232,9 @@ async def prospect(
     query: str = Query("clínica odontológica"),
     cidade: str = Query("Brasília DF"),
     max_leads: int = Query(20, ge=1, le=50),
+    icp_id: str | None = Query(None),
+    prioridade_minima: str | None = Query(None),
+    somente_whatsapp: bool = Query(False),
 ):
     """Inicia pipeline de prospecção em background (independente do request)."""
     global _prospect_task
@@ -225,7 +251,7 @@ async def prospect(
             media_type="application/json; charset=utf-8",
         )
 
-    _iniciar_task_prospeccao(query, cidade, max_leads)
+    _iniciar_task_prospeccao(query, cidade, max_leads, icp_id)
 
     return JSONResponse(
         content={
@@ -234,6 +260,11 @@ async def prospect(
             "query": query,
             "cidade": cidade,
             "max_leads": max_leads,
+            "icp_id": icp_id,
+            "filtros": {
+                "prioridade_minima": prioridade_minima,
+                "somente_whatsapp": somente_whatsapp,
+            },
         },
         media_type="application/json; charset=utf-8",
     )
@@ -261,6 +292,7 @@ async def get_leads():
 
 @app.get("/api/dashboard")
 async def dashboard():
+    from prospector.dashboard_ops import build_operational_dashboard
     from prospector.leads_crm import calcular_metricas, ler_status_todos
     from storage.database import get_all_leads, get_lead_statuses, supabase_disponivel
 
@@ -271,8 +303,8 @@ async def dashboard():
         leads = _enriquecer_leads(_carregar_leads_csv())
         statuses = ler_status_todos()
     metricas = calcular_metricas(leads, statuses)
-    ultimos = leads[:5]
-    return _json({"metricas": metricas, "ultimos_leads": ultimos, "version": AGENT_VERSION})
+    ops = build_operational_dashboard(leads, metricas)
+    return _json({**ops, "ultimos_leads": leads[:5], "version": AGENT_VERSION})
 
 
 @app.get("/api/system/status")
@@ -351,8 +383,15 @@ async def update_lead_status_endpoint(domain: str, body: StatusUpdate):
             ok = await update_lead_status(domain, body.status)
             if not ok:
                 return _json({"ok": False, "error": "Lead não encontrado"})
+            from prospector.activity_log import log_event
+            from models.lead_status import status_label_pt
+            entry = log_event(domain, "status_changed", f"Status → {status_label_pt(body.status)}", body.status)
+            await _persist_activity(domain, entry)
             return _json({"ok": True, "domain": domain, "status": body.status})
         entry = atualizar_status(domain, body.status)
+        from prospector.activity_log import log_event
+        from models.lead_status import status_label_pt
+        entry = log_event(domain, "status_changed", f"Status → {status_label_pt(body.status)}")
         return _json({"ok": True, "domain": domain, **entry})
     except ValueError as exc:
         return _json({"ok": False, "error": str(exc)})
@@ -367,6 +406,9 @@ async def add_lead_note(domain: str, body: NotaUpdate):
         notas = await add_lead_note(domain, body.nota)
     else:
         notas = adicionar_nota(domain, body.nota)
+    from prospector.activity_log import log_event
+    entry = log_event(domain, "note_added", "Nota adicionada", body.nota[:120])
+    await _persist_activity(domain, entry)
     return _json({"ok": True, "domain": domain, "notas": notas})
 
 
@@ -382,18 +424,383 @@ async def get_site_seo(domain: str):
 
 @app.get("/api/whatsapp/{domain}")
 async def get_whatsapp_message(domain: str):
-    from prospector.whatsapp_writer import gerar_mensagem_whatsapp
-    from storage.database import get_site_data
+    from prospector.message_generator import gerar_pacote_mensagens
+    from storage.database import get_all_leads, get_site_data, supabase_disponivel
+
+    if supabase_disponivel():
+        leads = await get_all_leads()
+        lead = next((l for l in leads if l.get("domain") == domain.replace("www.", "")), None)
+        if lead and lead.get("messages_pack"):
+            return lead["messages_pack"]
 
     site_data = await get_site_data(domain)
     if not site_data:
         return {"error": "domínio não encontrado"}
-    mensagem = gerar_mensagem_whatsapp(
-        site_data=site_data,
-        analysis=site_data.analysis or {},
-        tem_prototipo=False,
+    lead_stub = {"nome": domain, "website": site_data.url, "domain": domain}
+    if site_data.analysis:
+        lead_stub["nome"] = site_data.analysis.get("business_name", domain)
+    return gerar_pacote_mensagens(lead_stub, site_data=site_data, analysis=site_data.analysis or {})
+
+
+@app.get("/api/icps")
+async def list_icps_endpoint():
+    from prospector.icp_loader import list_icps
+    return _json([icp.to_dict() for icp in list_icps()])
+
+
+@app.get("/api/icps/{icp_id}")
+async def get_icp_endpoint(icp_id: str):
+    from prospector.icp_loader import load_icp
+    return _json(load_icp(icp_id).to_dict())
+
+
+@app.get("/api/leads/{domain}")
+async def get_lead_detail(domain: str):
+    from config import OUTPUT_DIR
+    from prospector.next_best_action import get_next_best_action
+    from models.lead_status import status_label_pt
+    from storage.database import get_all_leads, supabase_disponivel
+
+    if supabase_disponivel():
+        leads = await get_all_leads()
+    else:
+        leads = _enriquecer_leads(_carregar_leads_csv())
+
+    lead = _find_lead(leads, domain)
+    if not lead:
+        return _json({"error": "Lead não encontrado"})
+
+    slug = _domain_slug(lead.get("domain", domain))
+    diag_dir = OUTPUT_DIR / "diagnoses" / slug
+    proto_dir = OUTPUT_DIR / "sites" / slug / "prototype"
+
+    lead["status_label"] = status_label_pt(lead.get("crm_status", "new"))
+    lead["atividades"] = await _merge_lead_activities(domain)
+    lead["next_best_action"] = get_next_best_action(lead)
+    lead["diagnosis"] = {
+        "exists": (diag_dir / "diagnostico.md").exists(),
+        "markdown_url": f"/diagnosis/{slug}/md" if (diag_dir / "diagnostico.md").exists() else "",
+        "html_url": f"/diagnosis/{slug}/html" if (diag_dir / "diagnostico.html").exists() else "",
+    }
+    lead["prototype"] = {
+        "exists": (proto_dir / "index.html").exists(),
+        "preview_url": f"/prototype/{slug}" if (proto_dir / "index.html").exists() else "",
+        "quality_report": _load_json_safe(proto_dir / "quality_report.json"),
+    }
+    pack = lead.get("messages_pack") or {}
+    if isinstance(pack, str):
+        try:
+            pack = json.loads(pack)
+        except json.JSONDecodeError:
+            pack = {}
+    lead["messages_pack"] = pack
+    return _json(lead)
+
+
+def _find_lead(leads: list[dict], domain: str) -> dict | None:
+    d = domain.replace("www.", "").replace("_", ".")
+    lead = next((l for l in leads if l.get("domain", "").replace("www.", "") == d.replace("www.", "")), None)
+    if not lead:
+        slug = _domain_slug(domain)
+        lead = next((l for l in leads if _domain_slug(l.get("domain", "")) == slug), None)
+    return lead
+
+
+def _load_json_safe(path: Path) -> dict:
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+
+def _normalize_activities(items: list[dict]) -> list[dict]:
+    """Unifica campos de atividade para a UI."""
+    seen: set[str] = set()
+    out: list[dict] = []
+    for a in items:
+        aid = a.get("id") or f"{a.get('type', '')}-{a.get('created_at', '')}"
+        if aid in seen:
+            continue
+        seen.add(aid)
+        out.append({
+            **a,
+            "id": a.get("id", aid),
+            "criado_em": a.get("criado_em") or a.get("created_at") or a.get("timestamp", ""),
+            "tipo": a.get("tipo") or a.get("type", ""),
+            "title": a.get("title") or a.get("tipo") or a.get("type", "Atividade"),
+        })
+    out.sort(key=lambda x: x.get("criado_em", ""), reverse=True)
+    return out
+
+
+async def _merge_lead_activities(domain: str) -> list[dict]:
+    from prospector.activity_log import listar_atividades
+    from storage.database import get_lead_activities, supabase_disponivel
+
+    local = listar_atividades(domain)
+    if supabase_disponivel():
+        remote = await get_lead_activities(domain)
+        return _normalize_activities(remote + local)
+    return _normalize_activities(local)
+
+
+async def _persist_activity(domain: str, entry: dict) -> None:
+    from storage.database import append_lead_activity, supabase_disponivel
+
+    if supabase_disponivel():
+        await append_lead_activity(domain, entry)
+
+
+@app.get("/prototype/{slug}")
+async def serve_prototype(slug: str):
+    path = ROOT / "output" / "sites" / slug / "prototype" / "index.html"
+    if not path.exists():
+        return _json({"error": "Protótipo não encontrado"})
+    return FileResponse(path, media_type="text/html")
+
+
+@app.get("/diagnosis/{slug}/html")
+async def serve_diagnosis_html(slug: str):
+    path = ROOT / "output" / "diagnoses" / slug / "diagnostico.html"
+    if not path.exists():
+        return _json({"error": "Diagnóstico não encontrado"})
+    return FileResponse(path, media_type="text/html")
+
+
+@app.get("/diagnosis/{slug}/md")
+async def serve_diagnosis_md(slug: str):
+    path = ROOT / "output" / "diagnoses" / slug / "diagnostico.md"
+    if not path.exists():
+        return _json({"error": "Diagnóstico não encontrado"})
+    return FileResponse(path, media_type="text/markdown")
+
+
+@app.post("/api/leads/{domain}/diagnosis")
+async def generate_diagnosis_endpoint(domain: str):
+    from output.diagnosis import generate_diagnosis, save_diagnosis
+    from storage.database import get_all_leads, supabase_disponivel
+
+    if supabase_disponivel():
+        leads = await get_all_leads()
+    else:
+        leads = _enriquecer_leads(_carregar_leads_csv())
+    lead = next((l for l in leads if l.get("domain", "").replace("www.", "") == domain.replace("www.", "")), None)
+    if not lead:
+        return _json({"ok": False, "error": "Lead não encontrado"})
+
+    diagnosis = generate_diagnosis(lead)
+    paths = save_diagnosis(lead, diagnosis)
+    from prospector.activity_log import log_event
+    from storage.artifact_index import register_diagnosis
+
+    entry = log_event(domain, "diagnosis_generated", "Mini diagnóstico gerado", paths.get("markdown", ""))
+    await _persist_activity(domain, entry)
+    register_diagnosis(domain, lead, paths)
+    from prospector.next_best_action import get_next_best_action
+    diagnosis["json"]["next_best_action"] = get_next_best_action(lead)
+    return _json({"ok": True, "diagnosis": diagnosis, "paths": paths})
+
+
+@app.post("/api/leads/{domain}/prototype")
+async def generate_prototype_endpoint(domain: str, body: GenerateRequest):
+    from config import DEFAULT_SITE_GENERATOR_MODE
+    from output.site_generator import SiteGenerator, SiteGeneratorInput, generate_site
+    from storage.database import get_all_leads, get_site_data, supabase_disponivel
+
+    site_data = await get_site_data(domain)
+    if not site_data:
+        return _json({"ok": False, "error": "Análise do site não encontrada. Rode prospecção ou análise primeiro."})
+
+    lead: dict = {}
+    if supabase_disponivel():
+        leads = await get_all_leads()
+        lead = next((l for l in leads if domain in (l.get("domain", ""), _domain_slug(l.get("domain", "")))), {})
+
+    mode = body.mode or DEFAULT_SITE_GENERATOR_MODE
+    result = await generate_site(
+        site_data,
+        site_data.analysis or {},
+        lead=lead,
+        mode=mode,
+        icp_id=body.icp_id or lead.get("icp_id", "odontologia"),
+        template_id=body.template_id or "",
+        variation=body.variation or "",
     )
-    return mensagem
+    quality: dict = {}
+    if result.success and result.output_path:
+        from output.quality_checklist import run_quality_check
+        from pathlib import Path as P
+        html = P(result.output_path).read_text(encoding="utf-8")
+        quality = run_quality_check(
+            html,
+            business_name=lead.get("nome", domain),
+            whatsapp=lead.get("whatsapp", ""),
+            niche=lead.get("icp_id", "odontologia"),
+            variation=body.variation or "",
+            output_dir=P(result.output_path).parent,
+        )
+    from prospector.activity_log import log_event
+    from storage.artifact_index import register_prototype
+
+    entry = log_event(domain, "prototype_generated", f"Protótipo ({result.mode})", result.output_path or "")
+    await _persist_activity(domain, entry)
+    if result.success and result.output_path:
+        register_prototype(
+            domain,
+            lead,
+            output_path=result.output_path,
+            variation=body.variation or "",
+            quality_report=quality,
+        )
+    return _json({
+        "ok": result.success,
+        "mode": result.mode,
+        "output_path": result.output_path,
+        "prompt_path": result.prompt_path,
+        "preview_url": f"/prototype/{_domain_slug(domain)}" if result.output_path else "",
+        "quality_report": quality,
+        "message": result.message,
+        "error": result.error,
+    })
+
+
+@app.post("/api/leads/{domain}/activity")
+async def register_activity_endpoint(domain: str, body: ActivityLogRequest):
+    from prospector.activity_log import acao_rapida, log_event, registrar_atividade
+    from storage.database import supabase_disponivel, update_lead_status
+
+    if body.type:
+        entry = log_event(domain, body.type, body.title or body.type, body.description)
+        await _persist_activity(domain, entry)
+        return _json({"ok": True, "entry": entry})
+
+    status_from_acao = {
+        "abordado": "contacted", "respondeu": "responded", "interessado": "interested",
+        "pediu_preco": "responded", "chamar_depois": "follow_up_later", "perdido": "lost",
+        "fechado": "closed", "descartado": "discarded",
+        "prototipo_enviado": "prototype_sent", "proposta_enviada": "proposal_sent",
+    }
+
+    if body.acao:
+        entry = acao_rapida(domain, body.acao, body.nota)
+        await _persist_activity(domain, entry)
+        st = status_from_acao.get(body.acao, "")
+        if st and supabase_disponivel():
+            await update_lead_status(domain, st, body.nota)
+    else:
+        entry = registrar_atividade(
+            domain,
+            nota=body.nota,
+            canal=body.canal,
+            resultado=body.resultado,
+        )
+        await _persist_activity(domain, entry)
+        if body.resultado:
+            status_map = {
+                "interessado": "interested",
+                "fechado": "closed",
+                "perdido": "lost",
+                "respondeu": "responded",
+            }
+            st = status_map.get(body.resultado)
+            if st:
+                if supabase_disponivel():
+                    await update_lead_status(domain, st)
+                else:
+                    from prospector.leads_crm import atualizar_status
+                    atualizar_status(domain, st)
+
+    return _json({"ok": True, "entry": entry})
+
+
+@app.get("/api/leads/{domain}/activity")
+async def get_activity_endpoint(domain: str):
+    return _json(await _merge_lead_activities(domain))
+
+
+@app.get("/api/diagnoses")
+async def list_diagnoses_endpoint():
+    from storage.artifact_index import list_diagnoses
+    from storage.database import get_all_leads, supabase_disponivel
+
+    if supabase_disponivel():
+        leads = await get_all_leads()
+    else:
+        leads = _enriquecer_leads(_carregar_leads_csv())
+    return _json(list_diagnoses(leads))
+
+
+@app.get("/api/prototypes")
+async def list_prototypes_endpoint():
+    from storage.artifact_index import list_prototypes
+    from storage.database import get_all_leads, supabase_disponivel
+
+    if supabase_disponivel():
+        leads = await get_all_leads()
+    else:
+        leads = _enriquecer_leads(_carregar_leads_csv())
+    return _json(list_prototypes(leads))
+
+
+@app.get("/api/leads/export/csv")
+async def export_leads_csv(
+    status: str | None = Query(None),
+    min_score: int | None = Query(None),
+    icp_id: str | None = Query(None),
+):
+    import csv
+    import io
+
+    from fastapi.responses import StreamingResponse
+    from models.lead_status import normalize_status
+    from storage.database import get_all_leads, supabase_disponivel
+    from storage.lead_utils import CSV_EXPORT_COLUMNS, lead_to_export_row
+
+    if supabase_disponivel():
+        leads = await get_all_leads()
+    else:
+        leads = _enriquecer_leads(_carregar_leads_csv())
+
+    if status:
+        norm = normalize_status(status)
+        leads = [l for l in leads if normalize_status(l.get("crm_status")) == norm]
+    if min_score is not None:
+        leads = [l for l in leads if int(l.get("score") or l.get("opportunity_score") or 0) >= min_score]
+    if icp_id:
+        leads = [l for l in leads if l.get("icp_id") == icp_id]
+
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=CSV_EXPORT_COLUMNS, extrasaction="ignore")
+    writer.writeheader()
+    for lead in leads:
+        writer.writerow(lead_to_export_row(lead))
+
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": "attachment; filename=leads_export.csv"},
+    )
+
+
+@app.get("/api/env")
+async def get_public_env():
+    """Config pública para o frontend (sem secrets)."""
+    from config import API_BASE_URL, DEFAULT_SITE_GENERATOR_MODE
+    return _json({
+        "api_base_url": API_BASE_URL,
+        "default_site_generator_mode": DEFAULT_SITE_GENERATOR_MODE,
+        "version": AGENT_VERSION,
+    })
+
+
+from fastapi.staticfiles import StaticFiles
+
+_assets = ROOT / "templates" / "assets"
+if _assets.exists():
+    app.mount("/assets", StaticFiles(directory=str(_assets)), name="assets")
 
 
 if __name__ == "__main__":

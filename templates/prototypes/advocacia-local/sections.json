@@ -1,0 +1,8 @@
+{
+  "orders": {
+    "default": ["hero", "services", "trust", "differentials", "cta", "contact"],
+    "autoridade_institucional": ["hero", "trust", "differentials", "services", "cta"],
+    "captacao_area": ["hero", "services", "journey", "trust", "cta", "contact"],
+    "escritorio_local": ["hero", "contact", "trust", "services", "cta"]
+  }
+}

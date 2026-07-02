@@ -1,0 +1,67 @@
+{
+  "hero": {
+    "headlines": {
+      "default": "Sabores de {city} — {name}",
+      "experiencia_gastronomica": "Uma experiência gastronômica memorável — {name}",
+      "delivery_cardapio": "Peça agora: {name} entrega em {city}",
+      "reservas_eventos": "Reserve sua mesa ou evento em {name}"
+    },
+    "subheadlines": {
+      "default": "Ingredientes selecionados, ambiente acolhedor e atendimento que convida a voltar.",
+      "experiencia_gastronomica": "Menu autoral, harmonização e ambiente pensado para momentos especiais.",
+      "delivery_cardapio": "Cardápio completo no WhatsApp. Entrega rápida e embalagem que preserva o sabor.",
+      "reservas_eventos": "Aniversários, confraternizações e jantares — capacidade e menu sob medida."
+    }
+  },
+  "cta": {
+    "primary": "Ver cardápio",
+    "secondary": "Fazer pedido",
+    "experiencia_gastronomica": "Reservar experiência",
+    "delivery_cardapio": "Pedir pelo WhatsApp",
+    "reservas_eventos": "Solicitar reserva"
+  },
+  "services_by_variation": {
+    "experiencia_gastronomica": [
+      {"title": "Menu degustação", "description": "Sequência de pratos assinados pelo chef."},
+      {"title": "Harmonização", "description": "Sugestões de bebidas para cada etapa."},
+      {"title": "Ambiente premium", "description": "Mesa reservada e serviço atencioso."},
+      {"title": "Ocasiões especiais", "description": "Pacotes para datas comemorativas."}
+    ],
+    "delivery_cardapio": [
+      {"title": "Delivery", "description": "Entrega em bairros de {city} com rastreio pelo WhatsApp."},
+      {"title": "Combos", "description": "Opções para almoço, jantar e família."},
+      {"title": "Pagamento fácil", "description": "Pix, cartão e pedido sem complicação."},
+      {"title": "Retirada", "description": "Retire no balcão sem fila."}
+    ],
+    "reservas_eventos": [
+      {"title": "Reserva de mesa", "description": "Garanta seu horário nos dias de maior movimento."},
+      {"title": "Eventos privados", "description": "Salão ou área reservada para grupos."},
+      {"title": "Cardápio para grupos", "description": "Opções compartilhadas e buffet sob consulta."},
+      {"title": "Atendimento dedicado", "description": "Equipe para organizar seu evento."}
+    ]
+  },
+  "services": [
+    {"title": "Almoço", "description": "Pratos do dia com ingredientes frescos."},
+    {"title": "Jantar", "description": "Menu completo para noites especiais."},
+    {"title": "Delivery", "description": "Pedidos pelo WhatsApp com entrega ágil."},
+    {"title": "Eventos", "description": "Espaço para celebrações e grupos."}
+  ],
+  "trust_items": [
+    "Avaliações positivas no Google",
+    "Ingredientes frescos",
+    "Equipe experiente",
+    "Localização em {city}"
+  ],
+  "differentials": [
+    {"title": "Sabor", "text": "Receitas que valorizam o melhor da região."},
+    {"title": "Consistência", "text": "Padrão de qualidade em cada pedido."},
+    {"title": "Atendimento", "text": "Equipe pronta para receber bem."},
+    {"title": "Acesso", "text": "Fácil de encontrar e estacionar em {city}."}
+  ],
+  "journey_steps": [
+    {"title": "1. Escolha", "text": "Veja o cardápio ou conte o tipo de evento."},
+    {"title": "2. Confirmação", "text": "Reserva ou pedido confirmado pelo WhatsApp."},
+    {"title": "3. Preparo", "text": "Cozinha prepara com cuidado e pontualidade."},
+    {"title": "4. Experiência", "text": "Mesa servida ou entrega no horário combinado."}
+  ]
+}

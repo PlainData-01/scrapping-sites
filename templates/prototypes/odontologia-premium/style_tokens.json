@@ -1,0 +1,27 @@
+{
+  "colors": { "primary": "#0d9488", "accent": "#f59e0b", "background": "#fafafa", "text": "#1e293b" },
+  "fonts": { "heading": "Georgia, serif", "body": "'Segoe UI', system-ui, sans-serif" },
+  "variations": {
+    "premium_minimal": {
+      "colors": { "primary": "#334155", "accent": "#94a3b8", "background": "#ffffff" },
+      "fonts": { "heading": "'Helvetica Neue', Arial, sans-serif", "body": "system-ui, sans-serif" },
+      "hero_style": "minimal"
+    },
+    "familiar": {
+      "colors": { "primary": "#059669", "accent": "#fbbf24" },
+      "hero_style": "centered"
+    },
+    "implantes": {
+      "colors": { "primary": "#1e40af", "accent": "#c9a227" },
+      "hero_style": "split"
+    },
+    "ortodontia": {
+      "colors": { "primary": "#7c3aed", "accent": "#22d3ee" },
+      "hero_style": "centered"
+    },
+    "local_acessivel": {
+      "colors": { "primary": "#16a34a", "accent": "#ea580c" },
+      "hero_style": "centered"
+    }
+  }
+}

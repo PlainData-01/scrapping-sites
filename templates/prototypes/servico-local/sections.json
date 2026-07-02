@@ -1,0 +1,8 @@
+{
+  "orders": {
+    "default": ["hero", "services", "trust", "differentials", "cta", "contact"],
+    "orcamento_rapido": ["hero", "contact", "services", "cta"],
+    "emergencia_rapidez": ["hero", "cta", "services", "trust", "contact"],
+    "confianca_local": ["hero", "trust", "differentials", "services", "cta", "contact"]
+  }
+}

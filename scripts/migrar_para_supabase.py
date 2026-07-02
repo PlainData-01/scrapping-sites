@@ -3,8 +3,8 @@ Migra dados do SQLite local e arquivos JSON/CSV para o Supabase.
 Rodar UMA VEZ após configurar as credenciais do Supabase.
 
 Pré-requisito:
-    Executar supabase/migrate_schema.sql no SQL Editor do Supabase
-    (ou supabase/schema.sql se for instalação nova).
+    Executar supabase/migrations/002_migrate_schema.sql no SQL Editor do Supabase
+    (ou supabase/migrations/001_schema.sql se for instalação nova).
 
 Uso:
     python scripts/migrar_para_supabase.py
@@ -24,7 +24,7 @@ from urllib.parse import urlparse
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-MIGRATE_SQL = ROOT / "supabase" / "migrate_schema.sql"
+MIGRATE_SQL = ROOT / "supabase" / "migrations" / "002_migrate_schema.sql"
 
 
 def _normalizar_dominio(url: str) -> str:
@@ -54,7 +54,7 @@ def _verificar_schema(sb) -> bool:
             print("\n[ERRO] Schema incompleto no Supabase!")
             print(f"   Arquivo: {MIGRATE_SQL}")
             print("   1. Abra Supabase Dashboard -> SQL Editor")
-            print("   2. Cole o conteudo de supabase/migrate_schema.sql")
+            print("   2. Cole o conteudo de supabase/migrations/002_migrate_schema.sql")
             print("   3. Clique Run e aguarde ~10 segundos")
             print("   4. Rode este script novamente\n")
             return False

@@ -11,6 +11,8 @@ from urllib.parse import urlparse
 
 from config import OUTPUT_DIR
 
+from models.lead_status import VALID_STATUSES, normalize_status
+
 logger = logging.getLogger(__name__)
 
 LEADS_DIR = OUTPUT_DIR / "leads"
@@ -18,8 +20,9 @@ STATUS_FILE = LEADS_DIR / "status.json"
 NOTAS_FILE = LEADS_DIR / "notas.json"
 UI_CONFIG_FILE = LEADS_DIR / "ui_config.json"
 
-STATUS_VALIDOS = frozenset({
-    "pendente", "abordado", "interessado", "fechado", "perdido", "descartado",
+# Status válidos (novo modelo + legado)
+STATUS_VALIDOS = VALID_STATUSES | frozenset({
+    "pendente", "abordado", "interessado", "fechado", "perdido", "descartado", "pronto",
 })
 
 DEFAULT_UI_CONFIG = {
@@ -27,6 +30,7 @@ DEFAULT_UI_CONFIG = {
     "timeout_lead": 180,
     "paginas_por_lead": 8,
     "cache_dias": 7,
+    "icp_id": "odontologia",
     "regioes_premium": [
         "asa sul", "asa norte", "lago sul", "lago norte",
         "sudoeste", "noroeste", "águas claras", "park sul",
@@ -83,15 +87,20 @@ def obter_status(domain: str) -> dict[str, Any]:
 
 def atualizar_status(domain: str, status: str) -> dict[str, Any]:
     domain = normalizar_dominio(domain)
-    if status not in STATUS_VALIDOS:
+    normalized = normalize_status(status)
+    if status not in STATUS_VALIDOS and normalized not in VALID_STATUSES:
         raise ValueError(f"Status inválido: {status}")
 
     dados = ler_status_todos()
     entry = dados.get(domain, {})
-    entry["status"] = status
+    entry["status"] = normalized
     entry["updated_at"] = _agora()
-    if status == "abordado" and "abordado_em" not in entry:
+    if normalized in ("contacted", "abordado") and "abordado_em" not in entry:
         entry["abordado_em"] = _agora()
+    if normalized in ("interested", "interessado"):
+        entry["interessado_em"] = _agora()
+    if normalized in ("closed", "fechado"):
+        entry["fechado_em"] = _agora()
     dados[domain] = entry
     _salvar_json(STATUS_FILE, dados)
     return entry
@@ -138,10 +147,11 @@ def calcular_metricas(leads: list[dict], statuses: dict) -> dict[str, Any]:
 
     for lead in leads:
         domain = normalizar_dominio(lead.get("website", lead.get("nome", "")))
-        st = statuses.get(domain, {}).get("status", lead.get("status", "pendente"))
-        if st in ("pronto", "pendente"):
-            st = statuses.get(domain, {}).get("status", "pendente")
-        if st == "abordado":
+        raw_st = statuses.get(domain, {}).get("status", lead.get("status_crm", lead.get("crm_status", "new")))
+        st = normalize_status(raw_st)
+        if st in ("new", "qualified", "pendente", "pronto"):
+            pass  # novos / pendentes
+        elif st in ("contacted", "abordado"):
             abordados += 1
             abordado_em = statuses.get(domain, {}).get("abordado_em", "")
             if abordado_em.startswith(hoje):
@@ -150,7 +160,7 @@ def calcular_metricas(leads: list[dict], statuses: dict) -> dict[str, Any]:
                 try:
                     dt = datetime.fromisoformat(abordado_em.replace("Z", "+00:00"))
                     diff = datetime.now(timezone.utc) - dt
-                    if diff.total_seconds() > 86400 and st == "abordado":
+                    if diff.total_seconds() > 86400:
                         alertas_whatsapp.append({
                             "nome": lead.get("nome", domain),
                             "domain": domain,
@@ -158,12 +168,12 @@ def calcular_metricas(leads: list[dict], statuses: dict) -> dict[str, Any]:
                         })
                 except ValueError:
                     pass
-        elif st == "interessado":
+        elif st in ("interested", "interessado", "prototype_requested", "prototype_sent", "proposal_sent"):
             interessados += 1
             interessados_semana += 1
-        elif st == "fechado":
+        elif st in ("closed", "fechado"):
             fechados += 1
-        elif st == "perdido":
+        elif st in ("lost", "perdido", "discarded", "descartado"):
             perdidos += 1
 
     taxa = round((interessados / abordados * 100), 1) if abordados else 0

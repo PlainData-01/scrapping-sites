@@ -1,0 +1,49 @@
+id: restaurantes
+name: "Restaurantes"
+description: "Restaurantes locais que podem se beneficiar de cardápio online, WhatsApp, reservas e presença digital mais clara."
+
+target_keywords:
+  - "restaurante"
+  - "pizzaria"
+  - "hamburgueria"
+  - "comida japonesa"
+  - "comida italiana"
+  - "bar e restaurante"
+
+locations:
+  - "Brasília"
+  - "Asa Sul"
+  - "Asa Norte"
+  - "Águas Claras"
+  - "Lago Sul"
+  - "Noroeste"
+  - "Sudoeste"
+
+avoid_keywords:
+  - "franquia nacional"
+  - "shopping"
+  - "delivery apenas ifood"
+
+positive_signals:
+  website_exists: 8
+  no_website: 5
+  old_visual_site: 20
+  weak_mobile_cta: 20
+  no_visible_whatsapp: 15
+  whatsapp_found: 10
+  rating_above_4_3: 10
+  reviews_above_100: 15
+  no_online_menu: 20
+  no_reservation_cta: 15
+  instagram_strong_site_weak: 20
+
+negative_signals:
+  low_rating: -20
+  no_phone: -20
+  likely_big_brand: -25
+  very_modern_site: -20
+
+offer:
+  type: "Site/cardápio digital com WhatsApp e reservas"
+  promise: "facilitar pedidos, reservas e apresentação do restaurante"
+  recommended_prototype: "restaurante-local"

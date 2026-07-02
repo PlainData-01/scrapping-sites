@@ -1,0 +1,51 @@
+id: estetica
+name: "Clínicas de estética"
+description: "Clínicas e profissionais de estética com potencial para melhorar apresentação visual e captação de agendamentos."
+
+target_keywords:
+  - "clínica de estética"
+  - "estética facial"
+  - "estética corporal"
+  - "harmonização facial"
+  - "depilação a laser"
+  - "procedimentos estéticos"
+
+locations:
+  - "Brasília"
+  - "Asa Sul"
+  - "Asa Norte"
+  - "Águas Claras"
+  - "Lago Sul"
+  - "Noroeste"
+  - "Sudoeste"
+
+avoid_keywords:
+  - "franquia nacional"
+  - "curso"
+  - "academia"
+
+positive_signals:
+  website_exists: 10
+  instagram_strong_site_weak: 30
+  old_visual_site: 25
+  weak_mobile_cta: 25
+  no_visible_whatsapp: 20
+  whatsapp_found: 10
+  rating_above_4_5: 10
+  reviews_above_50: 12
+  premium_neighborhood: 10
+  no_meta_pixel: 10
+  no_service_pages: 15
+  no_social_proof_on_site: 15
+
+negative_signals:
+  no_website: -10
+  low_rating: -15
+  no_phone: -20
+  very_modern_site: -25
+  likely_big_brand: -20
+
+offer:
+  type: "Landing page premium para procedimentos estéticos"
+  promise: "transformar visitantes em agendamentos pelo WhatsApp"
+  recommended_prototype: "estetica-premium"

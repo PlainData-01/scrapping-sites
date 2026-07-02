@@ -1,0 +1,19 @@
+{
+  "colors": { "primary": "#1e3a5f", "accent": "#c9a227", "background": "#f8fafc", "text": "#0f172a" },
+  "fonts": { "heading": "Georgia, 'Times New Roman', serif", "body": "'Segoe UI', system-ui, sans-serif" },
+  "variations": {
+    "autoridade_institucional": {
+      "colors": { "primary": "#0f172a", "accent": "#b8860b", "background": "#ffffff" },
+      "fonts": { "heading": "Georgia, serif", "body": "system-ui, sans-serif" },
+      "hero_style": "minimal"
+    },
+    "captacao_area": {
+      "colors": { "primary": "#1d4ed8", "accent": "#fbbf24" },
+      "hero_style": "split"
+    },
+    "escritorio_local": {
+      "colors": { "primary": "#334155", "accent": "#16a34a" },
+      "hero_style": "centered"
+    }
+  }
+}

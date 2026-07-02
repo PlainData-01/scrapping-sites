@@ -1,0 +1,67 @@
+{
+  "hero": {
+    "headlines": {
+      "default": "Advocacia em {city} — {name}",
+      "autoridade_institucional": "Assessoria jurídica com tradição e rigor — {name}",
+      "captacao_area": "Precisa de advogado especialista? Fale com {name}",
+      "escritorio_local": "Escritório de advocacia de confiança em {city}"
+    },
+    "subheadlines": {
+      "default": "Atendimento ético, estratégico e focado em resultados para o seu caso.",
+      "autoridade_institucional": "Equipe experiente, linguagem clara e condução segura em cada etapa processual.",
+      "captacao_area": "Atuação focada na sua demanda: análise do caso, estratégia e acompanhamento próximo.",
+      "escritorio_local": "Atendimento presencial e online para moradores de {city} e região."
+    }
+  },
+  "cta": {
+    "primary": "Agendar consulta",
+    "secondary": "Falar com advogado",
+    "autoridade_institucional": "Solicitar análise do caso",
+    "captacao_area": "Contar meu caso agora",
+    "escritorio_local": "Chamar no WhatsApp"
+  },
+  "services_by_variation": {
+    "autoridade_institucional": [
+      {"title": "Consultoria jurídica", "description": "Pareceres e orientação estratégica para decisões seguras."},
+      {"title": "Contencioso cível", "description": "Defesa técnica com preparo documental completo."},
+      {"title": "Contratos empresariais", "description": "Elaboração e revisão com linguagem clara e proteção legal."},
+      {"title": "Compliance", "description": "Adequação de processos para reduzir riscos jurídicos."}
+    ],
+    "captacao_area": [
+      {"title": "Direito trabalhista", "description": "Rescisões, verbas e ações contra empregador."},
+      {"title": "Direito de família", "description": "Divórcio, guarda, pensão e mediação."},
+      {"title": "Direito previdenciário", "description": "Aposentadoria, benefícios e revisões."},
+      {"title": "Direito do consumidor", "description": "Cobranças indevidas, contratos e indenizações."}
+    ],
+    "escritorio_local": [
+      {"title": "Atendimento local", "description": "Escritório em {city} com horários acessíveis."},
+      {"title": "Primeira consulta", "description": "Entendimento do caso sem juridiquês desnecessário."},
+      {"title": "Acompanhamento", "description": "Retornos e atualizações durante todo o processo."},
+      {"title": "Honorários claros", "description": "Proposta transparente antes de iniciar."}
+    ]
+  },
+  "services": [
+    {"title": "Consultoria", "description": "Orientação jurídica personalizada."},
+    {"title": "Contencioso", "description": "Representação em processos judiciais."},
+    {"title": "Contratos", "description": "Elaboração e revisão de documentos."},
+    {"title": "Mediação", "description": "Soluções extrajudiciais quando possível."}
+  ],
+  "trust_items": [
+    "Advogados registrados na OAB",
+    "Sigilo e ética profissional",
+    "Atendimento humanizado",
+    "Histórico de casos em {city}"
+  ],
+  "differentials": [
+    {"title": "Clareza", "text": "Explicamos cada etapa sem termos confusos."},
+    {"title": "Estratégia", "text": "Plano de ação alinhado ao seu objetivo."},
+    {"title": "Agilidade", "text": "Resposta rápida e prazos monitorados."},
+    {"title": "Presença local", "text": "Escritório acessível em {city}."}
+  ],
+  "journey_steps": [
+    {"title": "1. Contato", "text": "Relate sua situação pelo WhatsApp ou formulário."},
+    {"title": "2. Análise", "text": "Avaliamos documentos e viabilidade jurídica."},
+    {"title": "3. Estratégia", "text": "Definimos o melhor caminho: acordo ou processo."},
+    {"title": "4. Acompanhamento", "text": "Você recebe atualizações em cada fase."}
+  ]
+}

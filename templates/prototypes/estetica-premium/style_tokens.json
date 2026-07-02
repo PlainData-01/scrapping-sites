@@ -1,0 +1,19 @@
+{
+  "colors": { "primary": "#be185d", "accent": "#f472b6", "background": "#fdf2f8", "text": "#1f2937" },
+  "fonts": { "heading": "'Playfair Display', Georgia, serif", "body": "'Segoe UI', system-ui, sans-serif" },
+  "variations": {
+    "premium_transformacao": {
+      "colors": { "primary": "#1f2937", "accent": "#d4af37", "background": "#ffffff" },
+      "fonts": { "heading": "'Helvetica Neue', Arial, sans-serif", "body": "system-ui, sans-serif" },
+      "hero_style": "minimal"
+    },
+    "humanizada": {
+      "colors": { "primary": "#9d174d", "accent": "#fda4af" },
+      "hero_style": "centered"
+    },
+    "procedimento_rapido": {
+      "colors": { "primary": "#7c3aed", "accent": "#22d3ee" },
+      "hero_style": "split"
+    }
+  }
+}

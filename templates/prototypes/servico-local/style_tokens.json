@@ -1,0 +1,18 @@
+{
+  "colors": { "primary": "#0369a1", "accent": "#f97316", "background": "#f0f9ff", "text": "#0f172a" },
+  "fonts": { "heading": "'Segoe UI', system-ui, sans-serif", "body": "system-ui, sans-serif" },
+  "variations": {
+    "orcamento_rapido": {
+      "colors": { "primary": "#0ea5e9", "accent": "#22c55e" },
+      "hero_style": "split"
+    },
+    "emergencia_rapidez": {
+      "colors": { "primary": "#dc2626", "accent": "#fbbf24", "background": "#fff" },
+      "hero_style": "centered"
+    },
+    "confianca_local": {
+      "colors": { "primary": "#1e40af", "accent": "#16a34a" },
+      "hero_style": "centered"
+    }
+  }
+}

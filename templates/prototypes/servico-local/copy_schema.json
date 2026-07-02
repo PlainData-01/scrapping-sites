@@ -1,0 +1,67 @@
+{
+  "hero": {
+    "headlines": {
+      "default": "Serviços em {city} — {name}",
+      "orcamento_rapido": "Orçamento rápido e sem surpresa — {name}",
+      "emergencia_rapidez": "Atendimento de emergência em {city}",
+      "confianca_local": "Serviço de confiança para sua casa em {city}"
+    },
+    "subheadlines": {
+      "default": "Profissionais qualificados, preço justo e atendimento que resolve.",
+      "orcamento_rapido": "Envie fotos pelo WhatsApp e receba orçamento claro ainda hoje.",
+      "emergencia_rapidez": "Chamados urgentes com prioridade. Chegamos rápido em {city} e região.",
+      "confianca_local": "Anos de atuação local, referências na região e garantia no serviço."
+    }
+  },
+  "cta": {
+    "primary": "Pedir orçamento",
+    "secondary": "Chamar agora",
+    "orcamento_rapido": "Orçar pelo WhatsApp",
+    "emergencia_rapidez": "Chamar emergência",
+    "confianca_local": "Falar com especialista"
+  },
+  "services_by_variation": {
+    "orcamento_rapido": [
+      {"title": "Visita técnica", "description": "Avaliação no local com valor fechado antes de começar."},
+      {"title": "Manutenção", "description": "Reparos preventivos e corretivos residenciais."},
+      {"title": "Instalações", "description": "Montagem e instalação com material de qualidade."},
+      {"title": "Pagamento flexível", "description": "Pix, cartão e parcelamento conforme o serviço."}
+    ],
+    "emergencia_rapidez": [
+      {"title": "Plantão", "description": "Atendimento fora do horário comercial quando necessário."},
+      {"title": "Urgências", "description": "Vazamentos, curtos e falhas que não podem esperar."},
+      {"title": "Resposta rápida", "description": "Confirmação de horário em minutos pelo WhatsApp."},
+      {"title": "Equipe móvel", "description": "Profissionais equipados para resolver na primeira visita."}
+    ],
+    "confianca_local": [
+      {"title": "Referências locais", "description": "Clientes em {city} que recomendam nosso trabalho."},
+      {"title": "Garantia", "description": "Serviço com garantia escrita e suporte pós-obra."},
+      {"title": "Transparência", "description": "Sem taxas escondidas — você sabe o que está pagando."},
+      {"title": "Equipe fixa", "description": "Mesmos profissionais que você pode confiar."}
+    ]
+  },
+  "services": [
+    {"title": "Instalação", "description": "Montagem e instalação profissional."},
+    {"title": "Manutenção", "description": "Reparos e ajustes com agilidade."},
+    {"title": "Emergência", "description": "Atendimento prioritário quando urgente."},
+    {"title": "Orçamento", "description": "Avaliação gratuita pelo WhatsApp."}
+  ],
+  "trust_items": [
+    "Profissionais qualificados",
+    "Atendimento em {city} e região",
+    "Orçamento sem compromisso",
+    "Avaliações no Google"
+  ],
+  "differentials": [
+    {"title": "Pontualidade", "text": "Horário combinado é respeitado."},
+    {"title": "Limpeza", "text": "Área organizada ao final do serviço."},
+    {"title": "Preço justo", "text": "Valor alinhado antes de iniciar."},
+    {"title": "Suporte", "text": "Retorno se precisar de ajuste."}
+  ],
+  "journey_steps": [
+    {"title": "1. Contato", "text": "Descreva o problema ou envie fotos."},
+    {"title": "2. Orçamento", "text": "Receba valor e prazo estimado."},
+    {"title": "3. Execução", "text": "Serviço feito com qualidade e segurança."},
+    {"title": "4. Garantia", "text": "Acompanhamento após a conclusão."}
+  ]
+}

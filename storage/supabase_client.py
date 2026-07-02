@@ -19,7 +19,10 @@ def get_supabase() -> Client | None:
         return None
 
     url = os.getenv("SUPABASE_URL", "")
-    key = os.getenv("SUPABASE_KEY", "")
+    key = (
+        os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+        or os.getenv("SUPABASE_KEY", "").strip()
+    )
 
     if not url or not key:
         return None

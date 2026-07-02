@@ -16,6 +16,7 @@ from urllib.parse import urlparse
 import aiosqlite
 
 from config import CACHE_DAYS, DATABASE_PATH, SiteData
+from storage.lead_utils import parse_json_field
 from storage.supabase_client import get_supabase, supabase_disponivel
 
 logger = logging.getLogger(__name__)
@@ -119,6 +120,22 @@ def _extrair_coluna_ausente(exc: Exception) -> str | None:
     return None
 
 
+def _supabase_update_resiliente(sb, tabela: str, data: dict, match_col: str, match_val: str):
+    """Update removendo colunas ausentes no schema (compatível com legado)."""
+    payload = dict(data)
+    for _ in range(12):
+        try:
+            return sb.table(tabela).update(payload).eq(match_col, match_val).execute()
+        except Exception as exc:
+            coluna = _extrair_coluna_ausente(exc)
+            if coluna and coluna in payload:
+                logger.debug("Coluna '%s' ausente em %s — omitindo no update", coluna, tabela)
+                payload.pop(coluna)
+                continue
+            raise
+    raise RuntimeError(f"Update em {tabela} falhou após remover colunas opcionais")
+
+
 def _supabase_upsert_resiliente(sb, tabela: str, data: dict, on_conflict: str):
     """Upsert removendo colunas ausentes no schema (compatível com v1)."""
     payload = dict(data)
@@ -136,8 +153,34 @@ def _supabase_upsert_resiliente(sb, tabela: str, data: dict, on_conflict: str):
 
 
 def _lead_dict_to_supabase(lead_data: dict) -> dict:
+    from models.lead_status import normalize_status
+
     website = lead_data.get("website", "")
     domain = lead_data.get("domain") or urlparse(website).netloc.replace("www.", "")
+    score_reasons = lead_data.get("score_reasons", [])
+    if isinstance(score_reasons, str):
+        try:
+            score_reasons = json.loads(score_reasons)
+        except json.JSONDecodeError:
+            score_reasons = [score_reasons]
+    commercial = lead_data.get("commercial_analysis") or {}
+    if isinstance(commercial, str):
+        try:
+            commercial = json.loads(commercial)
+        except json.JSONDecodeError:
+            commercial = {}
+    messages_pack = lead_data.get("messages_pack") or {}
+    if isinstance(messages_pack, str):
+        try:
+            messages_pack = json.loads(messages_pack)
+        except json.JSONDecodeError:
+            messages_pack = {}
+
+    crm = normalize_status(lead_data.get("crm_status") or lead_data.get("status_crm") or "new")
+
+    main_pain = lead_data.get("main_pain") or lead_data.get("problema_principal", "")
+    proc_status = lead_data.get("status", "pronto")
+
     return {
         "nome": lead_data.get("nome", ""),
         "domain": domain,
@@ -149,52 +192,90 @@ def _lead_dict_to_supabase(lead_data: dict) -> dict:
         "google_maps_url": lead_data.get("google_maps", lead_data.get("google_maps_url", "")),
         "avaliacao": float(lead_data.get("avaliacao") or 0),
         "total_avaliacoes": int(lead_data.get("total_avaliacoes") or 0),
-        "categoria": lead_data.get("categoria", ""),
-        "score": int(lead_data.get("score") or 0),
+        "categoria": lead_data.get("categoria", lead_data.get("niche", "")),
+        "score": int(lead_data.get("opportunity_score") or lead_data.get("score") or 0),
         "plataforma": lead_data.get("plataforma_detectada", lead_data.get("plataforma", "")),
         "prioridade": lead_data.get("prioridade", "baixa"),
         "qualificado": bool(lead_data.get("qualificado", True)),
         "motivo_descarte": lead_data.get("motivo_descarte", ""),
-        "problema_principal": lead_data.get("problema_principal", ""),
+        "problema_principal": main_pain,
         "mensagem_whatsapp": lead_data.get("mensagem_whatsapp", ""),
-        "mensagem_completa": lead_data.get("mensagem_completa", ""),
-        "status_processamento": lead_data.get("status", "pendente"),
+        "mensagem_completa": lead_data.get("mensagem_completa", lead_data.get("mensagem_consultiva", "")),
+        "status_processamento": proc_status,
+        "status": proc_status,
+        "status_crm": crm,
         "prospectado_por": os.getenv("USUARIO", "usuario1"),
+        "icp_id": lead_data.get("icp_id", "odontologia"),
+        "score_reasons": score_reasons,
+        "score_detalhes": score_reasons,
+        "main_pain": main_pain,
+        "commercial_angle": lead_data.get("commercial_angle", ""),
+        "suggested_offer": lead_data.get("suggested_offer", ""),
+        "commercial_analysis": commercial,
+        "messages_pack": messages_pack,
     }
 
 
 def _lead_row_to_api_dict(row: dict) -> dict:
-    notas = row.get("notas") or []
-    if isinstance(notas, str):
-        try:
-            notas = json.loads(notas)
-        except json.JSONDecodeError:
-            notas = []
+    from storage.lead_utils import extract_city_neighborhood, parse_json_field, parse_json_list_field
+
+    notas = parse_json_list_field(row.get("notas"), [])
+    messages_pack = parse_json_field(row.get("messages_pack"), {})
+    score_reasons = parse_json_list_field(
+        row.get("score_reasons") if row.get("score_reasons") is not None else row.get("score_detalhes"),
+        [],
+    )
+    commercial_analysis = parse_json_field(row.get("commercial_analysis"), {})
+    city, neighborhood = extract_city_neighborhood(row.get("endereco", ""))
+
     return {
+        "id": row.get("id"),
         "nome": row.get("nome", ""),
+        "business_name": row.get("nome", ""),
         "website": row.get("website", ""),
+        "website_url": row.get("website", ""),
         "domain": row.get("domain", ""),
         "endereco": row.get("endereco", ""),
+        "city": city,
+        "neighborhood": neighborhood,
         "telefone": row.get("telefone", ""),
+        "phone": row.get("telefone", ""),
         "whatsapp": row.get("whatsapp", ""),
         "whatsapp_link": row.get("whatsapp_link", ""),
         "google_maps_url": row.get("google_maps_url", ""),
         "avaliacao": row.get("avaliacao", 0),
+        "rating": row.get("avaliacao", 0),
         "total_avaliacoes": row.get("total_avaliacoes", 0),
+        "reviews_count": row.get("total_avaliacoes", 0),
         "score": row.get("score", 0),
+        "opportunity_score": row.get("score", 0),
         "prioridade": row.get("prioridade", "baixa"),
         "plataforma_detectada": row.get("plataforma", ""),
         "qualificado": row.get("qualificado", True),
         "motivo_descarte": row.get("motivo_descarte", ""),
         "problema_principal": row.get("problema_principal", ""),
+        "main_pain": row.get("main_pain") or row.get("problema_principal", ""),
+        "commercial_angle": row.get("commercial_angle", ""),
+        "suggested_offer": row.get("suggested_offer", ""),
+        "score_reasons": score_reasons,
+        "icp_id": row.get("icp_id", "odontologia"),
+        "niche": row.get("categoria", ""),
+        "categoria": row.get("categoria", ""),
+        "commercial_analysis": commercial_analysis,
+        "messages_pack": messages_pack,
         "mensagem_whatsapp": row.get("mensagem_whatsapp", ""),
         "mensagem_completa": row.get("mensagem_completa", ""),
-        "status": row.get("status_processamento", "pendente"),
-        "crm_status": row.get("status_crm", "pendente"),
-        "abordado_em": row.get("abordado_em") or "",
+        "status": row.get("status_processamento") or row.get("status", "pronto"),
+        "crm_status": row.get("status_crm", "new"),
+        "abordado_em": row.get("abordado_em") or row.get("last_contacted_at") or "",
+        "last_contacted_at": row.get("last_contacted_at") or row.get("abordado_em") or "",
+        "next_follow_up_at": row.get("next_follow_up_at") or "",
         "notas": notas,
         "prospectado_por": row.get("prospectado_por", ""),
         "created_at": row.get("created_at", ""),
+        "updated_at": row.get("updated_at", ""),
+        "atividades": parse_json_list_field(row.get("activities"), [])
+        or [n for n in notas if isinstance(n, dict) and n.get("tipo") == "atividade"],
     }
 
 
@@ -288,6 +369,18 @@ async def get_lead_notes() -> dict[str, list]:
     if supabase_disponivel():
         return await _get_lead_notes_supabase()
     return await _get_lead_notes_local()
+
+
+async def append_lead_activity(domain: str, entry: dict) -> list:
+    if supabase_disponivel():
+        return await _append_lead_activity_supabase(domain, entry)
+    return []
+
+
+async def get_lead_activities(domain: str) -> list:
+    if supabase_disponivel():
+        return await _get_lead_activities_supabase(domain)
+    return []
 
 
 # ─── SUPABASE — SITES ─────────────────────────────────────────────
@@ -451,31 +544,32 @@ async def _get_leads_supabase() -> list[dict]:
 
 
 async def _update_lead_supabase(domain: str, status: str, nota: str = "") -> bool:
+    from models.lead_status import normalize_status
+
     sb = get_supabase()
     key = _normalize_domain_key(domain)
-    update_data: dict = {"status_crm": status}
+    normalized = normalize_status(status)
+    update_data: dict = {"status_crm": normalized}
     now = datetime.now(timezone.utc).isoformat()
 
-    if status == "abordado":
+    if normalized in ("contacted", "abordado"):
         update_data["abordado_em"] = now
-    elif status == "interessado":
+        update_data["last_contacted_at"] = now
+    elif normalized in ("interested", "interessado", "prototype_sent", "proposal_sent"):
         update_data["interessado_em"] = now
-    elif status == "fechado":
+    elif normalized in ("closed", "fechado"):
         update_data["fechado_em"] = now
+    elif normalized == "follow_up_later":
+        update_data["next_follow_up_at"] = now
 
     if nota:
         row = await _fetch_lead_by_domain(key)
-        notas = row.get("notas") or [] if row else []
-        if isinstance(notas, str):
-            try:
-                notas = json.loads(notas)
-            except json.JSONDecodeError:
-                notas = []
+        notas = parse_json_field(row.get("notas") if row else None, [])
         notas.append({"texto": nota, "criado_em": now})
         update_data["notas"] = notas
 
     def _update():
-        return sb.table("leads").update(update_data).eq("domain", key).execute()
+        return _supabase_update_resiliente(sb, "leads", update_data, "domain", key)
 
     result = await asyncio.to_thread(_update)
     return bool(result.data)
@@ -505,7 +599,7 @@ async def _get_lead_statuses_supabase() -> dict[str, dict]:
     statuses: dict[str, dict] = {}
     for row in result.data or []:
         statuses[row["domain"]] = {
-            "status": row.get("status_crm", "pendente"),
+            "status": row.get("status_crm", "new"),
             "abordado_em": row.get("abordado_em") or "",
             "updated_at": row.get("updated_at") or "",
         }
@@ -517,15 +611,10 @@ async def _add_lead_note_supabase(domain: str, nota: str) -> list:
     nota = nota.strip()
     if not nota:
         row = await _fetch_lead_by_domain(key)
-        return row.get("notas") or [] if row else []
+        return parse_json_field(row.get("notas") if row else None, [])
 
     row = await _fetch_lead_by_domain(key)
-    notas = row.get("notas") or [] if row else []
-    if isinstance(notas, str):
-        try:
-            notas = json.loads(notas)
-        except json.JSONDecodeError:
-            notas = []
+    notas = parse_json_field(row.get("notas") if row else None, [])
     notas.append({"texto": nota, "criado_em": datetime.now(timezone.utc).isoformat()})
 
     sb = get_supabase()
@@ -535,6 +624,47 @@ async def _add_lead_note_supabase(domain: str, nota: str) -> list:
 
     await asyncio.to_thread(_update)
     return notas
+
+
+async def _append_lead_activity_supabase(domain: str, entry: dict) -> list:
+    from storage.lead_utils import parse_json_field
+
+    key = _normalize_domain_key(domain)
+    row = await _fetch_lead_by_domain(key)
+    if not row:
+        return []
+    activities = parse_json_field(row.get("activities"), [])
+    activities.append(entry)
+    activities = activities[-200:]
+
+    sb = get_supabase()
+
+    def _update():
+        try:
+            return sb.table("leads").update({"activities": activities}).eq("domain", key).execute()
+        except Exception as exc:
+            coluna = _extrair_coluna_ausente(exc)
+            if coluna != "activities":
+                raise
+            notas = parse_json_field(row.get("notas"), [])
+            notas.append({"tipo": "atividade", **entry})
+            return sb.table("leads").update({"notas": notas[-200:]}).eq("domain", key).execute()
+
+    await asyncio.to_thread(_update)
+    return activities
+
+
+async def _get_lead_activities_supabase(domain: str) -> list:
+    from storage.lead_utils import parse_json_field
+
+    row = await _fetch_lead_by_domain(_normalize_domain_key(domain))
+    if not row:
+        return []
+    activities = parse_json_field(row.get("activities"), [])
+    if activities:
+        return activities
+    notas = parse_json_field(row.get("notas"), [])
+    return [n for n in notas if isinstance(n, dict) and n.get("tipo") == "atividade"]
 
 
 async def _get_lead_notes_supabase() -> dict[str, list]:

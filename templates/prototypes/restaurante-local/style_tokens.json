@@ -1,0 +1,19 @@
+{
+  "colors": { "primary": "#b45309", "accent": "#f59e0b", "background": "#fffbeb", "text": "#292524" },
+  "fonts": { "heading": "'Playfair Display', Georgia, serif", "body": "'Segoe UI', system-ui, sans-serif" },
+  "variations": {
+    "experiencia_gastronomica": {
+      "colors": { "primary": "#78350f", "accent": "#d97706", "background": "#1c1917", "text": "#fafaf9" },
+      "fonts": { "heading": "Georgia, serif", "body": "system-ui, sans-serif" },
+      "hero_style": "minimal"
+    },
+    "delivery_cardapio": {
+      "colors": { "primary": "#ea580c", "accent": "#22c55e" },
+      "hero_style": "centered"
+    },
+    "reservas_eventos": {
+      "colors": { "primary": "#7c2d12", "accent": "#fbbf24" },
+      "hero_style": "split"
+    }
+  }
+}

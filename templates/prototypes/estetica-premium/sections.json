@@ -1,0 +1,8 @@
+{
+  "orders": {
+    "default": ["hero", "services", "trust", "differentials", "cta", "contact"],
+    "premium_transformacao": ["hero", "trust", "differentials", "services", "cta"],
+    "humanizada": ["hero", "trust", "journey", "services", "contact", "cta"],
+    "procedimento_rapido": ["hero", "contact", "services", "cta"]
+  }
+}

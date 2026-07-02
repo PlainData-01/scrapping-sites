@@ -1,0 +1,54 @@
+id: odontologia
+name: "Clínicas odontológicas"
+description: "Clínicas odontológicas com potencial para melhorar captação de agendamentos pelo WhatsApp."
+
+target_keywords:
+  - "clínica odontológica"
+  - "dentista"
+  - "implantes dentários"
+  - "ortodontia"
+  - "odontologia estética"
+
+locations:
+  - "Brasília"
+  - "Asa Sul"
+  - "Asa Norte"
+  - "Águas Claras"
+  - "Lago Sul"
+  - "Noroeste"
+  - "Sudoeste"
+
+avoid_keywords:
+  - "hospital"
+  - "franquia nacional"
+  - "universidade"
+  - "concurso"
+  - "curso"
+
+positive_signals:
+  website_exists: 10
+  wix_site: 25
+  wordpress_site: 15
+  old_visual_site: 20
+  weak_mobile_cta: 25
+  no_visible_whatsapp: 20
+  whatsapp_found: 10
+  rating_above_4_5: 10
+  reviews_above_50: 15
+  premium_neighborhood: 10
+  no_meta_pixel: 10
+  no_gtm: 8
+  no_contact_form: 8
+
+negative_signals:
+  no_website: -20
+  low_rating: -15
+  few_reviews: -10
+  very_modern_site: -25
+  no_phone: -20
+  likely_big_brand: -20
+
+offer:
+  type: "Landing page/site para captação de agendamentos odontológicos"
+  promise: "aumentar contatos qualificados pelo WhatsApp"
+  recommended_prototype: "odontologia-premium"

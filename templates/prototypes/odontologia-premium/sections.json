@@ -1,0 +1,10 @@
+{
+  "orders": {
+    "default": ["hero", "services", "trust", "cta", "contact"],
+    "premium_minimal": ["hero", "trust", "services", "cta"],
+    "familiar": ["hero", "trust", "services", "differentials", "cta", "contact"],
+    "implantes": ["hero", "journey", "services", "trust", "cta"],
+    "ortodontia": ["hero", "differentials", "services", "cta", "contact"],
+    "local_acessivel": ["hero", "contact", "services", "cta"]
+  }
+}
